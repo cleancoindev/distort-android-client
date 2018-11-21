@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Distort</string>
+    <!-- Strings related to login -->
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Sign in</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="error_invalid_password">This password is too short</string>
+    <string name="error_incorrect_password">This password is incorrect</string>
+    <string name="error_field_required">This field is required</string>
+    <string name="prompt_homeserver">Homeserver Address</string>
+    <string name="error_invalid_address">Address of homeserver is not correctly formatted. Format is [http[s]://]example.com[:port][/sub/path]</string>
+    <string name="title_activity_conversations">Conversations</string>
+    <string name="error_homeserver_could_not_reach">The given homeserver address was not reachable</string>
+    <string name="permission_camera_reason">The Camera permission is required for reading QR codes</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="action_scan_qr">Scan QR</string>
+    <string name="prompt_freindly_name">Friendly Name</string>
+    <string name="prompt_peer_id">Peer IPFS-ID</string>
+</resources>
