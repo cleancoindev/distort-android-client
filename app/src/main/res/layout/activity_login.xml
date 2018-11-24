@@ -33,7 +33,7 @@
 
             <android.support.design.widget.TextInputLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="match_parent">
 
                 <EditText
                     android:id="@+id/homeserver"
@@ -42,6 +42,29 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="0"
                     android:hint="@string/prompt_homeserver"
+                    android:imeOptions="actionNext"
+                    android:inputType="textUri"
+                    android:maxLines="1"
+                    android:nextFocusForward="@id/accountName"
+                    android:password="false"
+                    android:phoneNumber="false"
+                    android:selectAllOnFocus="false"
+                    android:singleLine="true"
+                    android:typeface="normal" />
+
+            </android.support.design.widget.TextInputLayout>
+
+            <android.support.design.widget.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <EditText
+                    android:id="@+id/accountName"
+                    style="@style/Widget.AppCompat.EditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="0"
+                    android:hint="@string/prompt_opt_account_name"
                     android:imeOptions="actionNext"
                     android:inputType="textUri"
                     android:maxLines="1"

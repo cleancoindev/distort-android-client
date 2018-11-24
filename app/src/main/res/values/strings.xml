@@ -17,5 +17,8 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="action_scan_qr">Scan QR</string>
     <string name="prompt_freindly_name">Friendly Name</string>
-    <string name="prompt_peer_id">Peer IPFS-ID</string>
+    <string name="prompt_peer_id">Peer ID</string>
+    <string name="text_create_new_conversation" >(It is recommended to scan a peer\'s QR code directly.)</string>
+    <string name="title_create_new_conversation">Create New Conversation</string>
+    <string name="prompt_opt_account_name">(Optional account)</string>
 </resources>
