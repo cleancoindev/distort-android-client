@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 
@@ -13,7 +14,6 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.JsonReader;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
@@ -23,28 +23,31 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.security.MessageDigest;
 
-import org.spongycastle.crypto.PBEParametersGenerator;
 import org.spongycastle.crypto.digests.SHA256Digest;
 import org.spongycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.spongycastle.crypto.params.KeyParameter;
-import org.spongycastle.jce.provider.BouncyCastleProvider;
 import org.spongycastle.util.encoders.Base64;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
+
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_ACCOUNT_NAME;
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_CREDENTIAL;
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_HOMESERVER;
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL;
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_PEER_ID;
 
 /**
  * A login screen that offers login via homeserver / password.
@@ -57,32 +60,11 @@ public class LoginActivity extends AppCompatActivity {
      */
     private static final Pattern IS_ADDRESS_PATTERN = Pattern.compile("(http(s)?://)?([a-zA-Z0-9.-]+\\.[a-z]+)(:[0-9]*)?(/[a-zA-Z0-9%/.-]*)?");
 
-    /**
-     * Protocol strings for connecting to homeserver
-     */
-    public static final String PROTOCOL_HTTPS = "https://";
-    public static final String PROTOCOL_HTTP = "http://";
-
 
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
     private UserLoginTask mAuthTask = null;
-
-
-    /**
-     * Pass login address and credentials to the conversations activity
-     */
-    public static final String EXTRA_HOMESERVER = "com.example.distort.HOMESERVER";
-    public static final String EXTRA_HOMESERVER_PROTOCOL = "com.example.distort.HOMESERVER_PROTOCOL";
-    public static final String EXTRA_CREDENTIAL = "com.example.distort.CREDENTIAL";
-    public static final String EXTRA_PEER_ID = "com.example.distort.PEER_ID";
-
-
-    // TEST VALUES
-    private static final String TEST_IPFS_PEER_ID = "QmcEVUBmGfgqyTAhiAi5H9dYqGnb4uMYKugV9bnpNqPYrs";
-    private static final String TEST_PASS = "test-pass";
-    private static final String TEST_TOKEN = "z0Mi+8Ul/Cwm14raY/T8u39Y8CLSM5kBEAxKA/4B2os=";
 
     // UI references.
     private EditText mHomeserverView;
@@ -95,8 +77,6 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
-        // TODO: If store exists with login credentials, attempt to bypass this step if login successful
 
         // Set up the login form.
         mHomeserverView = (EditText) findViewById(R.id.homeserver);
@@ -123,6 +103,15 @@ public class LoginActivity extends AppCompatActivity {
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+
+        SharedPreferences sharedPref = this.getSharedPreferences(
+                getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+        String token = sharedPref.getString(EXTRA_CREDENTIAL, null);
+        if(token != null) {
+            showProgress(true);
+            mAuthTask = new UserLoginTask(this, token);
+            mAuthTask.execute((Void) null);
+        }
     }
 
 
@@ -229,101 +218,148 @@ public class LoginActivity extends AppCompatActivity {
      * the user.
      */
     public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
-
-        private final String mAccount;
-        private final String mPassword;
         private final Context mContext;
+        private String mPassword;
         private String mAddress;
-        private String mToken;
-        private String mPeerId;
         private String mProtocol;
+        private String mPeerId;
+        private String mAccount;
+        private String mToken;
+
         private int errorCode;
 
         UserLoginTask(Context ctx, String address, String password, String account) {
             mContext = ctx;
             mAddress = address;
+
+            // Require that mAddress ends in '/' for consistency
             if(mAddress.charAt(mAddress.length()-1) != '/') {
                 mAddress += "/";
             }
 
             mAccount = account;
             mPassword = password;
-            mToken = "";
+
+            errorCode = 0;
+        }
+        UserLoginTask(Context ctx, String token) {
+            mContext = ctx;
+            mToken = token;
 
             errorCode = 0;
         }
 
-        private int GetResponseFromURL(HttpURLConnection myConnection) throws ProtocolException, IOException {
-            myConnection.setRequestMethod("GET");
+        private DistortAuthParams generateTokenFromFields() throws MalformedURLException, IOException{
+            String ipfsNodeId;
+            DistortAuthParams authParams = new DistortAuthParams();
 
-            // Set request header fields
-            myConnection.setRequestProperty("User-Agent", "distort-android-v0.1");
-            myConnection.setRequestProperty("Accept","*/*");
-            myConnection.setRequestProperty("peerid", mPeerId);
-            myConnection.setRequestProperty("authtoken", mToken);
-
-            // Make connection and determine response
-            myConnection.connect();
-            int response = myConnection.getResponseCode();
-            myConnection.disconnect();
-
-            return response;
-        }
-
-        @Override
-        protected Boolean doInBackground(Void... params) {
-            errorCode = 0;
-            String ipfsNodeId = TEST_IPFS_PEER_ID;
-            mPeerId = ipfsNodeId;
             if(mAccount.length() > 0) {
-                mPeerId += ":" + mAccount;
+                authParams.setAccountName(mAccount);
             }
+
+            // First discover IPFS Peer ID
+            String ipfsURL = mAddress + "ipfs";
+
+            URL homeserverEndpoint = new URL(ipfsURL);
+            Matcher matcher = IS_ADDRESS_PATTERN.matcher(mAddress);
+            matcher.find();
+
+            DistortJson.ResponseString response;
+            if(DistortAuthParams.PROTOCOL_HTTPS.equals(matcher.group(1))) {
+                mProtocol = DistortAuthParams.PROTOCOL_HTTPS;
+                authParams.setHomeserverProtocol(mProtocol);
+
+                HttpsURLConnection myConnection;
+                myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
+                response = DistortJson.GetResponseStringFromURL(myConnection, authParams);
+            } else {
+                mProtocol = DistortAuthParams.PROTOCOL_HTTP;
+                authParams.setHomeserverProtocol(mProtocol);
+
+                HttpURLConnection myConnection;
+                myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
+                response = DistortJson.GetResponseStringFromURL(myConnection, authParams);
+            }
+
+            if(response.mCode != 200) {
+                // Some error occurred
+                Log.e("LOGIN-IPFS", String.valueOf(response.mCode) + ":" + response.mResponse);
+                throw new IOException();
+            } else {
+                ipfsNodeId = response.mResponse;
+            }
+
+            mPeerId = ipfsNodeId;
+            authParams.setPeerId(mPeerId);
 
             // Attempt to generate token from password
             PKCS5S2ParametersGenerator generator = new PKCS5S2ParametersGenerator(new SHA256Digest());
             generator.init(mPassword.getBytes(), ipfsNodeId.getBytes(), 1000);
             KeyParameter passwordBasedKey = (KeyParameter)generator.generateDerivedMacParameters(256);
             mToken = new String(Base64.encode(passwordBasedKey.getKey()), Charset.forName("UTF-8"));
+            authParams.setCredential(mToken);
 
             Log.d("LOGIN-AUTH", mToken);
+            return authParams;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            errorCode = 0;
+            DistortAuthParams authParams;
+
+            if(mToken == null || mToken.length() == 0) {
+                try {
+                    authParams = generateTokenFromFields();
+                } catch (MalformedURLException e) {
+                    errorCode = -3;
+                    return false;
+                } catch (IOException e) {
+                    errorCode = -4;
+                    e.printStackTrace();
+                    return false;
+                }
+            } else {
+                SharedPreferences sharedPref = mContext.getSharedPreferences(
+                        getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                mAddress = sharedPref.getString(EXTRA_HOMESERVER, null);
+                mProtocol = sharedPref.getString(EXTRA_HOMESERVER_PROTOCOL, null);
+                mPeerId = sharedPref.getString(EXTRA_PEER_ID, null);
+                mAccount = sharedPref.getString(EXTRA_ACCOUNT_NAME, null);
+
+                authParams = new DistortAuthParams(mAddress, mProtocol, mPeerId, mAccount, mToken);
+            }
 
             // Attempt authentication against a network service.
             try {
-                // Create string to test login
+                // Create string to login
                 String loginURL = mAddress + "groups";
 
                 URL homeserverEndpoint = new URL(loginURL);
-                Matcher matcher = IS_ADDRESS_PATTERN.matcher(mAddress);
-                matcher.find();
-
-                int response;
-                if(PROTOCOL_HTTPS.equals(matcher.group(1))) {
-                    mProtocol = PROTOCOL_HTTPS;
-
+                 DistortJson.ResponseString response;
+                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mProtocol)) {
                     HttpsURLConnection myConnection;
                     myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                    response = GetResponseFromURL(myConnection);
+                    response = DistortJson.GetResponseStringFromURL(myConnection, authParams);
                 } else {
-                    mProtocol = PROTOCOL_HTTP;
-
                     HttpURLConnection myConnection;
                     myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                    response = GetResponseFromURL(myConnection);
+                    response = DistortJson.GetResponseStringFromURL(myConnection, authParams);
                 }
 
-                if(response != 200) {
-                    if(response == 401) {
+                if(response.mCode != 200) {
+                    if(response.mCode == 401) {
                         // Connected but password token was incorrect
                         errorCode = -1;
                     } else {
                         // Some other error...
-                        Log.e("LOGIN", String.valueOf(response));
+                        Log.e("LOGIN", String.valueOf(response.mCode) + ":" + response.mResponse);
                         errorCode = -2;
                     }
                 }
 
                 // Return true only if authentication was successful
-                return response == 200;
+                return response.mCode == 200;
             } catch (MalformedURLException e) {
                 errorCode = -3;
                 return false;
@@ -342,10 +378,22 @@ public class LoginActivity extends AppCompatActivity {
             Log.d("LOGIN", String.valueOf(errorCode));
 
             if (success) {
+                // Save login  credentials for later ease
+                SharedPreferences sharedPref = mContext.getSharedPreferences(
+                        getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                SharedPreferences.Editor preferenceEditor = sharedPref.edit();
+                preferenceEditor.putString(EXTRA_HOMESERVER, mAddress);
+                preferenceEditor.putString(EXTRA_HOMESERVER_PROTOCOL, mProtocol);
+                preferenceEditor.putString(EXTRA_PEER_ID, mPeerId);
+                preferenceEditor.putString(EXTRA_ACCOUNT_NAME, mAccount);
+                preferenceEditor.putString(EXTRA_CREDENTIAL, mToken);
+                preferenceEditor.commit();
+
                 Intent intent = new Intent(mContext, ConversationsActivity.class);
                 intent.putExtra(EXTRA_HOMESERVER, mAddress);
                 intent.putExtra(EXTRA_HOMESERVER_PROTOCOL, mProtocol);
                 intent.putExtra(EXTRA_PEER_ID, mPeerId);
+                intent.putExtra(EXTRA_ACCOUNT_NAME, mAccount);
                 intent.putExtra(EXTRA_CREDENTIAL, mToken);
                 startActivity(intent);
             } else {

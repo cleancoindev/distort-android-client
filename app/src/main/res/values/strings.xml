@@ -9,7 +9,7 @@
     <string name="error_field_required">This field is required</string>
     <string name="prompt_homeserver">Homeserver Address</string>
     <string name="error_invalid_address">Address of homeserver is not correctly formatted. Format is [http[s]://]example.com[:port][/sub/path]</string>
-    <string name="title_activity_conversations">Conversations</string>
+    <string name="title_activity_conversations">Conversation Groups</string>
     <string name="error_homeserver_could_not_reach">The given homeserver address was not reachable</string>
     <string name="permission_camera_reason">The Camera permission is required for reading QR codes</string>
 
@@ -18,7 +18,12 @@
     <string name="action_scan_qr">Scan QR</string>
     <string name="prompt_freindly_name">Friendly Name</string>
     <string name="prompt_peer_id">Peer ID</string>
-    <string name="text_create_new_conversation" >(It is recommended to scan a peer\'s QR code directly.)</string>
+    <string name="text_create_new_conversation">(It is recommended to scan a peer\'s QR code directly.)</string>
     <string name="title_create_new_conversation">Create New Conversation</string>
     <string name="prompt_opt_account_name">(Optional account)</string>
+    <string name="prompt_mesage">Message...</string>
+    <string name="message_from_self">Self</string>
+    <string name="messages_total_height">Total Messages</string>
+    <string name="messages_unread">Unread</string>
+    <string name="credentials_preferences_key">com.unix4all.rypi.distort.CREDENTIALS_PREFERENCES</string>
 </resources>

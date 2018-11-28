@@ -1,37 +1,37 @@
 package com.unix4all.rypi.distort;
 
-import android.content.Context;
+import android.app.Activity;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.DividerItemDecoration;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URL;
+import java.util.ArrayList;
 
 import javax.net.ssl.HttpsURLConnection;
 
 public class ConversationsActivity extends AppCompatActivity implements NewConversationFragment.NewConversationListener {
 
-    private String mHomserverAddress;
-    private String mHomserverProtocol;
-    private String mPeerId;
-    private String mCredential;
+    private DistortAuthParams mLoginParams;
 
-    private FetchGroupsTask mBackgroundTask;
+    private RecyclerView mGroupsView;
+    private GroupAdapter mGroupsAdapter;
+
+    private FetchGroupsTask mGroupsTask;
+    private FetchAccountTask mAccountTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,17 +39,35 @@ public class ConversationsActivity extends AppCompatActivity implements NewConve
         setContentView(R.layout.activity_conversations);
 
         Intent thisIntent = getIntent();
-        mHomserverAddress = thisIntent.getStringExtra(LoginActivity.EXTRA_HOMESERVER);
-        mHomserverProtocol = thisIntent.getStringExtra(LoginActivity.EXTRA_HOMESERVER_PROTOCOL);
-        mPeerId = thisIntent.getStringExtra(LoginActivity.EXTRA_PEER_ID);
-        mCredential = thisIntent.getStringExtra(LoginActivity.EXTRA_CREDENTIAL);
+        mLoginParams = new DistortAuthParams();
+        mLoginParams.setHomeserverAddress(thisIntent.getStringExtra(DistortAuthParams.EXTRA_HOMESERVER));
+        mLoginParams.setHomeserverProtocol(thisIntent.getStringExtra(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL));
+        mLoginParams.setPeerId(thisIntent.getStringExtra(DistortAuthParams.EXTRA_PEER_ID));
+        mLoginParams.setAccountName(thisIntent.getStringExtra(DistortAuthParams.EXTRA_ACCOUNT_NAME));
+        mLoginParams.setCredential(thisIntent.getStringExtra(DistortAuthParams.EXTRA_CREDENTIAL));
+
+        // Init toolbar
+        Toolbar toolbar = findViewById(R.id.groupToolbar);
+        toolbar.setTitle(R.string.title_activity_conversations);
+        setSupportActionBar(toolbar);
+
+        // Setup list of groups-list properties
+        mGroupsView = (RecyclerView) findViewById(R.id.groupsView);
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(ConversationsActivity.this, LinearLayoutManager.VERTICAL, false);
+        mGroupsView.setLayoutManager(linearLayoutManager);
+        mGroupsView.addItemDecoration(new DividerItemDecoration(ConversationsActivity.this, DividerItemDecoration.VERTICAL));
+
+        // Prepare for datasets
+        mGroupsAdapter = new GroupAdapter(ConversationsActivity.this, new ArrayList<DistortGroup>(), mLoginParams);
+        mGroupsView.setAdapter(mGroupsAdapter);
+
+        // Fetch account parameters
+        mAccountTask = new FetchAccountTask(this);
+        mAccountTask.execute();
 
         // Discover groups for this account
-        mBackgroundTask = new FetchGroupsTask();
-        mBackgroundTask.execute();
-
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        mGroupsTask = new FetchGroupsTask(this);
+        mGroupsTask.execute();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -71,37 +89,16 @@ public class ConversationsActivity extends AppCompatActivity implements NewConve
         // TODO: Attempt to add group to homeserver (PUT /groups)
     }
 
-    private @Nullable JsonReader GetJSONFromURL(HttpURLConnection myConnection) throws ProtocolException, IOException {
-        myConnection.setRequestMethod("GET");
-
-        // Set request header fields
-        myConnection.setRequestProperty("User-Agent", "distort-android-v0.1");
-        myConnection.setRequestProperty("Accept","*/*");
-        myConnection.setRequestProperty("peerid", mPeerId);
-        myConnection.setRequestProperty("authtoken", mCredential);
-
-        // Make connection and determine response
-        myConnection.connect();
-        int response = myConnection.getResponseCode();
-
-        // Reading the response
-        JsonReader jsonReader = null;
-        if(response == 200) {
-            jsonReader = new JsonReader(new InputStreamReader(myConnection.getInputStream(), "UTF-8"));
-        }
-        myConnection.disconnect();
-
-        return jsonReader;
-    }
-
     /**
      * Represents an asynchronous login/registration task used to retrieve all the user's groups
      */
     public class FetchGroupsTask extends AsyncTask<Void, Void, Boolean> {
 
         private int errorCode;
+        private Activity mActivity;
 
-        FetchGroupsTask() {
+        FetchGroupsTask(Activity activity) {
+            mActivity = activity;
             errorCode = 0;
         }
 
@@ -112,15 +109,15 @@ public class ConversationsActivity extends AppCompatActivity implements NewConve
             // Attempt authentication against a network service.
             try {
                 JsonReader response = null;
-                URL homeserverEndpoint = new URL(mHomserverAddress + "groups");
-                if(LoginActivity.PROTOCOL_HTTPS.equals(mHomserverProtocol)) {
+                URL homeserverEndpoint = new URL(mLoginParams.getHomeserverAddress() + "groups");
+                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                     HttpsURLConnection myConnection;
                     myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                    response = GetJSONFromURL(myConnection);
+                    response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
                 } else {
                     HttpURLConnection myConnection;
                     myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                    response = GetJSONFromURL(myConnection);
+                    response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
                 }
                 if(response == null) {
                     return false;
@@ -128,32 +125,122 @@ public class ConversationsActivity extends AppCompatActivity implements NewConve
 
                 // Read all groups
                 response.beginArray();
+                final ArrayList<DistortGroup> allGroups = new ArrayList<>();
                 while(response.hasNext()) {
-                    String name = null;
-                    Integer subgroupIndex = null;
-                    Integer height = null;
-                    Integer lastReadIndex = null;
+                    allGroups.add(DistortGroup.readGroupJson(response));
+                }
+                response.endArray();
+                response.close();
 
-                    // Read all fields from group
-                    response.beginObject();
-                    while(response.hasNext()) {
-                        // name subgroupIndex height lastReadIndex
-                        String key = response.nextName();
-                        if(key.equals("name")) {
-                            name = response.nextString();
-                        } else if(key.equals("subgroupIndex")) {
-                            subgroupIndex = response.nextInt();
-                        } else if(key.equals("height")) {
-                            height = response.nextInt();
-                        } else if(key.equals("lastReadIndex")) {
-                            lastReadIndex = response.nextInt();
-                        } else {
-                            response.skipValue();
+                // Can only update UI from UI thread
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        for(int i = 0; i < allGroups.size(); i++) {
+                            mGroupsAdapter.addOrUpdateGroup(allGroups.get(i));
                         }
                     }
-                    if(name != null && subgroupIndex != null && height != null && lastReadIndex != null) {
-                        Log.d("GET-GROUPS", "Group ( " + name + "," + subgroupIndex + "," + height+ "," + lastReadIndex + " )");
+                });
+
+                return true;
+            } catch (MalformedURLException e) {
+                errorCode = -3;
+                return false;
+            } catch (IOException e) {
+                errorCode = -4;
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final Boolean success) {
+            Log.d("GET-GROUPS", String.valueOf(errorCode));
+
+            // TODO: Handle failure
+            if(!success) {
+
+            }
+        }
+    }
+
+    /**
+     * Represents an asynchronous login/registration task used to retrieve all the user's groups
+     */
+    public class FetchAccountTask extends AsyncTask<Void, Void, Boolean> {
+
+        private int errorCode;
+        private Activity mActivity;
+
+        FetchAccountTask(Activity activity) {
+            mActivity = activity;
+            errorCode = 0;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            errorCode = 0;
+
+            // Attempt authentication against a network service.
+            try {
+                JsonReader response = null;
+                URL homeserverEndpoint = new URL(mLoginParams.getHomeserverAddress() + "account");
+                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
+                    HttpsURLConnection myConnection;
+                    myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                } else {
+                    HttpURLConnection myConnection;
+                    myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                }
+                if(response == null) {
+                    return false;
+                }
+
+                String accountName = null;
+                DistortGroup activeGroup = null;
+                Boolean enabled = null;
+                String peerId = null;
+
+                // Read all fields from group
+                response.beginObject();
+                while(response.hasNext()) {
+                    String key = response.nextName();
+                    Log.d("GET-ACCOUNT-KEY", key);
+
+                    if(key.equals("accountName")) {
+                        accountName = response.nextString();
+                    } else if(key.equals("activeGroup")) {
+                        activeGroup = DistortGroup.readGroupJson(response);
+                        activeGroup.setIsActive(true);
+                    } else if(key.equals("enabled")) {
+                        enabled = response.nextBoolean();
+                    } else if(key.equals("peerId")) {
+                        peerId = response.nextString();
+                    } else {
+                        response.skipValue();
                     }
+                }
+                if(accountName != null && enabled != null && peerId != null) {
+                    String activeGroupStr = "";
+                    if(activeGroup != null) {
+                        activeGroupStr += "," + activeGroup.getId();
+
+
+                        // Can only update UI from UI thread, and requires final parameter passing
+                        final DistortGroup g = activeGroup;
+                        mActivity.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mGroupsAdapter.addOrUpdateGroup(g);
+                            }
+                        });
+                    }
+
+                    Log.d("GET-ACCOUNT", "Account ( " + accountName + "," + enabled + "," + peerId + " )");
+                } else {
+                    // TODO: Failed to retrieve account, handle error
                 }
                 response.close();
 
@@ -170,7 +257,7 @@ public class ConversationsActivity extends AppCompatActivity implements NewConve
 
         @Override
         protected void onPostExecute(final Boolean success) {
-            Log.d("GET-GROUPS", String.valueOf(errorCode));
+            Log.d("GET-ACCOUNT", String.valueOf(errorCode));
 
             if (success) {
 
