@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="new_group_levels">
+        <item>Level 0</item>item>
+        <item>Level 1</item>item>
+        <item>Level 2</item>item>
+        <item>Level 3</item>item>
+        <item>Level 4</item>item>
+        <item>Level 5</item>item>
+        <item>Level 6</item>item>
+    </string-array>
+</resources>

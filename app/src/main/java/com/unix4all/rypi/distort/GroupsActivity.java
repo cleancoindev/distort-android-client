@@ -1,11 +1,16 @@
 package com.unix4all.rypi.distort;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
@@ -17,169 +22,133 @@ import android.view.View;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class ConversationsActivity extends AppCompatActivity implements NewConversationFragment.NewConversationListener {
+public class GroupsActivity extends AppCompatActivity implements NewGroupFragment.NewGroupListener {
+    private final GroupsActivity mActivity = this;
 
     private DistortAuthParams mLoginParams;
 
     private RecyclerView mGroupsView;
     private GroupAdapter mGroupsAdapter;
 
-    private FetchGroupsTask mGroupsTask;
     private FetchAccountTask mAccountTask;
+
+    private GroupServiceBroadcastReceiver mServiceReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_conversations);
+        setContentView(R.layout.activity_groups);
 
-        Intent thisIntent = getIntent();
+        // Use shared preferences to fetch authorization params
+        SharedPreferences sharedPref = this.getSharedPreferences(
+                getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
-        mLoginParams.setHomeserverAddress(thisIntent.getStringExtra(DistortAuthParams.EXTRA_HOMESERVER));
-        mLoginParams.setHomeserverProtocol(thisIntent.getStringExtra(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL));
-        mLoginParams.setPeerId(thisIntent.getStringExtra(DistortAuthParams.EXTRA_PEER_ID));
-        mLoginParams.setAccountName(thisIntent.getStringExtra(DistortAuthParams.EXTRA_ACCOUNT_NAME));
-        mLoginParams.setCredential(thisIntent.getStringExtra(DistortAuthParams.EXTRA_CREDENTIAL));
+        mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
+        mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
+        mLoginParams.setPeerId(sharedPref.getString(DistortAuthParams.EXTRA_PEER_ID, null));
+        mLoginParams.setAccountName(sharedPref.getString(DistortAuthParams.EXTRA_ACCOUNT_NAME, null));
+        mLoginParams.setCredential(sharedPref.getString(DistortAuthParams.EXTRA_CREDENTIAL, null));
 
         // Init toolbar
         Toolbar toolbar = findViewById(R.id.groupToolbar);
-        toolbar.setTitle(R.string.title_activity_conversations);
+        toolbar.setTitle(R.string.title_activity_groups);
         setSupportActionBar(toolbar);
 
         // Setup list of groups-list properties
         mGroupsView = (RecyclerView) findViewById(R.id.groupsView);
-        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(ConversationsActivity.this, LinearLayoutManager.VERTICAL, false);
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(GroupsActivity.this, LinearLayoutManager.VERTICAL, false);
         mGroupsView.setLayoutManager(linearLayoutManager);
-        mGroupsView.addItemDecoration(new DividerItemDecoration(ConversationsActivity.this, DividerItemDecoration.VERTICAL));
+        mGroupsView.addItemDecoration(new DividerItemDecoration(GroupsActivity.this, DividerItemDecoration.VERTICAL));
 
         // Prepare for datasets
-        mGroupsAdapter = new GroupAdapter(ConversationsActivity.this, new ArrayList<DistortGroup>(), mLoginParams);
+        mGroupsAdapter = new GroupAdapter(GroupsActivity.this, new ArrayList<DistortGroup>(), mLoginParams);
         mGroupsView.setAdapter(mGroupsAdapter);
 
         // Fetch account parameters
         mAccountTask = new FetchAccountTask(this);
         mAccountTask.execute();
 
-        // Discover groups for this account
-        mGroupsTask = new FetchGroupsTask(this);
-        mGroupsTask.execute();
-
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                showCreateNewConversation();
+                showJoinNewGroup();
             }
         });
     }
 
-    private void showCreateNewConversation() {
+    private void showJoinNewGroup() {
         FragmentManager fm = getSupportFragmentManager();
-        NewConversationFragment newConversationFragment = NewConversationFragment.newInstance();
-        newConversationFragment.show(fm, "fragment_newConversationLayout");
+        NewGroupFragment newGroupFragment = NewGroupFragment.newInstance();
+        newGroupFragment.show(fm, "fragment_newGroupLayout");
     }
 
     @Override
-    public void onFinishConvoFieldInputs(String friendlyName, String peerId) {
+    public void onFinishGroupFieldInputs(String groupName, Integer subgroupIndex) {
         // TODO: Attempt to add group to homeserver (PUT /groups)
     }
 
-    /**
-     * Represents an asynchronous login/registration task used to retrieve all the user's groups
-     */
-    public class FetchGroupsTask extends AsyncTask<Void, Void, Boolean> {
+    // Getting local values
+    private HashMap<String, DistortGroup> getGroupsFromLocal() {
+        return DistortBackgroundService.getLocalGroups(this);
+    }
 
-        private int errorCode;
-        private Activity mActivity;
+    // Handle successful retrieval of groups
+    @Override
+    protected void onStart() {
+        mServiceReceiver = new GroupsActivity.GroupServiceBroadcastReceiver();
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_GROUPS);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mServiceReceiver, intentFilter);
 
-        FetchGroupsTask(Activity activity) {
-            mActivity = activity;
-            errorCode = 0;
-        }
-
+        DistortBackgroundService.startActionFetchGroups(getApplicationContext());
+        super.onStart();
+    }
+    @Override
+    protected void onStop() {
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mServiceReceiver);
+        super.onStop();
+    }
+    public class GroupServiceBroadcastReceiver extends BroadcastReceiver {
         @Override
-        protected Boolean doInBackground(Void... params) {
-            errorCode = 0;
+        public void onReceive(Context context, Intent intent) {
+            // Can only update UI from UI thread
+            mActivity.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    HashMap<String, DistortGroup> allGroups = getGroupsFromLocal();
 
-            // Attempt authentication against a network service.
-            try {
-                JsonReader response = null;
-                URL homeserverEndpoint = new URL(mLoginParams.getHomeserverAddress() + "groups");
-                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
-                    HttpsURLConnection myConnection;
-                    myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
-                } else {
-                    HttpURLConnection myConnection;
-                    myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
-                }
-                if(response == null) {
-                    return false;
-                }
-
-                // Read all groups
-                response.beginArray();
-                final ArrayList<DistortGroup> allGroups = new ArrayList<>();
-                while(response.hasNext()) {
-                    allGroups.add(DistortGroup.readGroupJson(response));
-                }
-                response.endArray();
-                response.close();
-
-                // Can only update UI from UI thread
-                mActivity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        for(int i = 0; i < allGroups.size(); i++) {
-                            mGroupsAdapter.addOrUpdateGroup(allGroups.get(i));
-                        }
+                    for(Map.Entry<String, DistortGroup> group : allGroups.entrySet()) {
+                        mGroupsAdapter.addOrUpdateGroup(group.getValue());
                     }
-                });
-
-                return true;
-            } catch (MalformedURLException e) {
-                errorCode = -3;
-                return false;
-            } catch (IOException e) {
-                errorCode = -4;
-                e.printStackTrace();
-                return false;
-            }
-        }
-
-        @Override
-        protected void onPostExecute(final Boolean success) {
-            Log.d("GET-GROUPS", String.valueOf(errorCode));
-
-            // TODO: Handle failure
-            if(!success) {
-
-            }
+                }
+            });
         }
     }
 
     /**
-     * Represents an asynchronous login/registration task used to retrieve all the user's groups
+     * Represents an asynchronous task used to retrieve a user account
      */
     public class FetchAccountTask extends AsyncTask<Void, Void, Boolean> {
 
-        private int errorCode;
+        private int mErrorCode;
         private Activity mActivity;
 
         FetchAccountTask(Activity activity) {
             mActivity = activity;
-            errorCode = 0;
+            mErrorCode = 0;
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            errorCode = 0;
+            mErrorCode = 0;
 
             // Attempt authentication against a network service.
             try {
@@ -238,18 +207,21 @@ public class ConversationsActivity extends AppCompatActivity implements NewConve
                         });
                     }
 
-                    Log.d("GET-ACCOUNT", "Account ( " + accountName + "," + enabled + "," + peerId + " )");
+                    Log.d("GET-ACCOUNT", "Account ( " + accountName + "," + enabled + "," + peerId + activeGroupStr + " )");
                 } else {
                     // TODO: Failed to retrieve account, handle error
                 }
                 response.close();
 
                 return true;
-            } catch (MalformedURLException e) {
-                errorCode = -3;
+            } catch (DistortJson.DistortException e) {
+                mErrorCode = -1;
+                e.printStackTrace();
+                Log.e("FETCH-ACCOUNT", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+
                 return false;
             } catch (IOException e) {
-                errorCode = -4;
+                mErrorCode = -2;
                 e.printStackTrace();
                 return false;
             }
@@ -257,7 +229,8 @@ public class ConversationsActivity extends AppCompatActivity implements NewConve
 
         @Override
         protected void onPostExecute(final Boolean success) {
-            Log.d("GET-ACCOUNT", String.valueOf(errorCode));
+            mAccountTask = null;
+            Log.d("GET-ACCOUNT", String.valueOf(mErrorCode));
 
             if (success) {
 

@@ -2,6 +2,7 @@ package com.unix4all.rypi.distort;
 
 import android.support.annotation.Nullable;
 import android.util.JsonReader;
+import android.util.JsonWriter;
 import android.util.Log;
 
 import java.io.IOException;
@@ -70,6 +71,7 @@ public class DistortGroup {
         Integer subgroupIndex = null;
         Integer height = null;
         Integer lastReadIndex = null;
+        Boolean isActive = null;
 
         // Read all fields from group
         json.beginObject();
@@ -84,9 +86,10 @@ public class DistortGroup {
                 subgroupIndex = json.nextInt();
             } else if(key.equals("height")) {
                 height = json.nextInt();
-                Log.d("GET-GROUP-HEIGHT", height.toString());
             } else if(key.equals("lastReadIndex")) {
                 lastReadIndex = json.nextInt();
+            } else if(key.equals("isActive")) {
+                isActive = json.nextBoolean();
             } else {
                 json.skipValue();
             }
@@ -95,9 +98,24 @@ public class DistortGroup {
 
         if(name != null && id != null && subgroupIndex != null && height != null && lastReadIndex != null) {
             Log.d("READ-GROUP", "Group ( " + name + "," + subgroupIndex + "," + height+ "," + lastReadIndex + "," + id + " )");
-            return new DistortGroup(name, id, subgroupIndex, height, lastReadIndex, null);
+            return new DistortGroup(name, id, subgroupIndex, height, lastReadIndex, isActive);
         } else {
             throw new IOException();
         }
+    }
+
+    // Write this object to JSON
+    public void writeGroupJson(JsonWriter json) throws IOException {
+        // Read all fields from group
+        json.beginObject();
+        json.name("name").value(mName);
+        json.name("_id").value(mId);
+        json.name("subgroupIndex").value(mSubgroupIndex);
+        json.name("height").value(mHeight);
+        json.name("lastReadIndex").value(mLastReadIndex);
+        if(mIsActive != null) {
+            json.name("isActive").value(mIsActive);
+        }
+        json.endObject();
     }
 }

@@ -6,7 +6,6 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 
 import android.os.AsyncTask;
@@ -23,13 +22,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URL;
 import java.nio.charset.Charset;
 
@@ -138,8 +133,8 @@ public class LoginActivity extends AppCompatActivity {
         View focusView = null;
 
         // Check for a valid password, if the user entered one.
-        if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
-            mPasswordView.setError(getString(R.string.error_invalid_password));
+        if (TextUtils.isEmpty(password)) {
+            mPasswordView.setError(getString(R.string.error_field_required));
             focusView = mPasswordView;
             cancel = true;
         }
@@ -170,11 +165,6 @@ public class LoginActivity extends AppCompatActivity {
 
     private boolean isAddressValid(String address) {
         return IS_ADDRESS_PATTERN.matcher(address).matches();
-    }
-
-    private boolean isPasswordValid(String password) {
-        //TODO: Replace this with improved logic
-        return true;
     }
 
     /**
@@ -226,7 +216,7 @@ public class LoginActivity extends AppCompatActivity {
         private String mAccount;
         private String mToken;
 
-        private int errorCode;
+        private int mErrorCode;
 
         UserLoginTask(Context ctx, String address, String password, String account) {
             mContext = ctx;
@@ -240,16 +230,16 @@ public class LoginActivity extends AppCompatActivity {
             mAccount = account;
             mPassword = password;
 
-            errorCode = 0;
+            mErrorCode = 0;
         }
         UserLoginTask(Context ctx, String token) {
             mContext = ctx;
             mToken = token;
 
-            errorCode = 0;
+            mErrorCode = 0;
         }
 
-        private DistortAuthParams generateTokenFromFields() throws MalformedURLException, IOException{
+        private DistortAuthParams generateTokenFromFields() throws DistortJson.DistortException, IOException{
             String ipfsNodeId;
             DistortAuthParams authParams = new DistortAuthParams();
 
@@ -305,33 +295,33 @@ public class LoginActivity extends AppCompatActivity {
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            errorCode = 0;
+            mErrorCode = 0;
             DistortAuthParams authParams;
-
-            if(mToken == null || mToken.length() == 0) {
-                try {
-                    authParams = generateTokenFromFields();
-                } catch (MalformedURLException e) {
-                    errorCode = -3;
-                    return false;
-                } catch (IOException e) {
-                    errorCode = -4;
-                    e.printStackTrace();
-                    return false;
-                }
-            } else {
-                SharedPreferences sharedPref = mContext.getSharedPreferences(
-                        getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
-                mAddress = sharedPref.getString(EXTRA_HOMESERVER, null);
-                mProtocol = sharedPref.getString(EXTRA_HOMESERVER_PROTOCOL, null);
-                mPeerId = sharedPref.getString(EXTRA_PEER_ID, null);
-                mAccount = sharedPref.getString(EXTRA_ACCOUNT_NAME, null);
-
-                authParams = new DistortAuthParams(mAddress, mProtocol, mPeerId, mAccount, mToken);
-            }
 
             // Attempt authentication against a network service.
             try {
+                if(mToken == null || mToken.length() == 0) {
+                    try {
+                        authParams = generateTokenFromFields();
+                    } catch (MalformedURLException e) {
+                        mErrorCode = -3;
+                        return false;
+                    } catch (IOException e) {
+                        mErrorCode = -4;
+                        e.printStackTrace();
+                        return false;
+                    }
+                } else {
+                    SharedPreferences sharedPref = mContext.getSharedPreferences(
+                            getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                    mAddress = sharedPref.getString(EXTRA_HOMESERVER, null);
+                    mProtocol = sharedPref.getString(EXTRA_HOMESERVER_PROTOCOL, null);
+                    mPeerId = sharedPref.getString(EXTRA_PEER_ID, null);
+                    mAccount = sharedPref.getString(EXTRA_ACCOUNT_NAME, null);
+
+                    authParams = new DistortAuthParams(mAddress, mProtocol, mPeerId, mAccount, mToken);
+                }
+
                 // Create string to login
                 String loginURL = mAddress + "groups";
 
@@ -350,22 +340,26 @@ public class LoginActivity extends AppCompatActivity {
                 if(response.mCode != 200) {
                     if(response.mCode == 401) {
                         // Connected but password token was incorrect
-                        errorCode = -1;
+                        mErrorCode = -1;
                     } else {
                         // Some other error...
                         Log.e("LOGIN", String.valueOf(response.mCode) + ":" + response.mResponse);
-                        errorCode = -2;
+                        mErrorCode = -2;
                     }
                 }
 
                 // Return true only if authentication was successful
                 return response.mCode == 200;
-            } catch (MalformedURLException e) {
-                errorCode = -3;
+            } catch (DistortJson.DistortException e) {
+                mErrorCode = -3;
+                e.printStackTrace();
+                Log.e("FETCH-GROUPS", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+
                 return false;
             } catch (IOException e) {
-                errorCode = -4;
+                mErrorCode = -4;
                 e.printStackTrace();
+
                 return false;
             }
         }
@@ -375,7 +369,7 @@ public class LoginActivity extends AppCompatActivity {
             mAuthTask = null;
             showProgress(false);
 
-            Log.d("LOGIN", String.valueOf(errorCode));
+            Log.d("LOGIN", String.valueOf(mErrorCode));
 
             if (success) {
                 // Save login  credentials for later ease
@@ -389,15 +383,10 @@ public class LoginActivity extends AppCompatActivity {
                 preferenceEditor.putString(EXTRA_CREDENTIAL, mToken);
                 preferenceEditor.commit();
 
-                Intent intent = new Intent(mContext, ConversationsActivity.class);
-                intent.putExtra(EXTRA_HOMESERVER, mAddress);
-                intent.putExtra(EXTRA_HOMESERVER_PROTOCOL, mProtocol);
-                intent.putExtra(EXTRA_PEER_ID, mPeerId);
-                intent.putExtra(EXTRA_ACCOUNT_NAME, mAccount);
-                intent.putExtra(EXTRA_CREDENTIAL, mToken);
+                Intent intent = new Intent(mContext, GroupsActivity.class);
                 startActivity(intent);
             } else {
-                if(errorCode == -1) {
+                if(mErrorCode == -1) {
                     mPasswordView.setError(getString(R.string.error_incorrect_password));
                     mPasswordView.requestFocus();
                 } else {

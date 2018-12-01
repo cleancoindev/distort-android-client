@@ -1,6 +1,7 @@
 package com.unix4all.rypi.distort;
 
 import android.util.JsonReader;
+import android.util.JsonWriter;
 import android.util.Log;
 
 import java.io.IOException;
@@ -42,14 +43,18 @@ public class InMessage extends DistortMessage {
     void setVerified(Boolean verified) {
         mVerified = verified;
     }
-    void setDateReceived(String jsDate) throws ParseException {
-        mDateReceived = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").parse(jsDate);
+    void setDateReceived(String jsDate) throws IOException {
+        try {
+            mDateReceived = DistortMessage.mongoDateFormat.parse(jsDate);
+        } catch (ParseException e) {
+            throw new IOException("Server sent invalid date-string: " + jsDate);
+        }
     }
     void setDateReceived(Date date) {
         mDateReceived = date;
     }
 
-    public static InMessage readMessageJson(JsonReader jsonReader) throws IOException, ParseException {
+    public static InMessage readMessageJson(JsonReader jsonReader) throws IOException {
         InMessage message = new InMessage();
 
         jsonReader.beginObject();
@@ -90,8 +95,7 @@ public class InMessage extends DistortMessage {
 
         return message;
     }
-
-    public static ArrayList<InMessage> readArrayJson(JsonReader jsonReader) throws IOException, ParseException {
+    public static ArrayList<InMessage> readArrayJson(JsonReader jsonReader) throws IOException {
         ArrayList<InMessage> messages = new ArrayList<>();
 
         jsonReader.beginArray();
@@ -101,5 +105,20 @@ public class InMessage extends DistortMessage {
         jsonReader.endArray();
 
         return messages;
+    }
+
+    // Write this object to JSON
+    public void writeMessageJson(JsonWriter json) throws IOException {
+        json.beginObject();
+        json.name("from").beginObject();
+            json.name("accountName").value(mFromAccount);
+            json.name("peerId").value(mFromPeerId);
+        json.endObject();
+        json.name("verified").value(mVerified);
+        json.name("_id").value(getId());
+        json.name("index").value(getIndex());
+        json.name("message").value(getMessage());
+        json.name("dateReceived").value(mongoDateFormat.format(mDateReceived));
+        json.endObject();
     }
 }

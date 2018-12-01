@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/newConversationLayout"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <!-- TODO: Update blank fragment layout -->
+
+    <EditText
+        android:id="@+id/newGroupName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:hint="@string/prompt_group_name"
+        android:importantForAutofill="no"
+        android:inputType="text" />
+
+    <TextView
+        android:id="@+id/newGroupNameHelper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/text_join_new_group" />
+
+    <Spinner
+        android:id="@+id/newGroupLevel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:entries="@array/new_group_levels" />
+
+    <TextView
+        android:id="@+id/newGroupLevelHelper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/text_join_new_group_level" />
+
+    <Button
+        android:id="@+id/joinGroupButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/new_group_join_button" />
+
+</LinearLayout>

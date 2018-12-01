@@ -5,4 +5,8 @@
     <color name="colorAccent">#D81B60</color>
     <color name="activeGroupColour">#ddf6e8</color>
     <color name="disabledGroupColour">#ffffff</color>
+    <color name="messageSent">#ceffdb</color>
+    <color name="messageEnqueued">#c4cec9</color>
+    <color name="messageCancelled">#ffdcdc</color>
+    <color name="messageReceived">#d7e7ff</color>
 </resources>

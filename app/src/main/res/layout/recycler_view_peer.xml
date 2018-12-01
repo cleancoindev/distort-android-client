@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/groupContainer"
+    android:id="@+id/peerContainer"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="5dp"
-    android:background="@drawable/rounded_rectangle"
     android:padding="5dp">
 
     <TextView
-        android:id="@+id/groupIcon"
+        android:id="@+id/peerIcon"
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:background="@drawable/rounded_drawable"
@@ -19,47 +18,35 @@
         android:textSize="20sp" />
 
     <TextView
-        android:id="@+id/groupName"
+        android:id="@+id/peerNickname"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginLeft="10dp"
-        android:layout_toEndOf="@+id/groupIcon"
-        android:layout_toRightOf="@+id/groupIcon"
+        android:layout_toEndOf="@+id/peerIcon"
+        android:layout_toRightOf="@+id/peerIcon"
         android:gravity="top"
         android:text="TextView"
         android:textSize="14sp"
         android:textStyle="bold"
-        app:layout_constraintLeft_toLeftOf="@+id/groupIcon"
-        app:layout_constraintStart_toEndOf="@+id/groupIcon" />
+        app:layout_constraintLeft_toLeftOf="@+id/peerIcon"
+        app:layout_constraintStart_toEndOf="@+id/peerIcon" />
 
     <TextView
-        android:id="@+id/groupDetail"
+        android:id="@+id/peerId"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/groupName"
+        android:layout_below="@+id/peerNickname"
         android:layout_marginStart="10dp"
         android:layout_marginLeft="10dp"
-        android:layout_toEndOf="@+id/groupIcon"
-        android:layout_toRightOf="@+id/groupIcon"
+        android:layout_toEndOf="@+id/peerIcon"
+        android:layout_toRightOf="@+id/peerIcon"
         android:ellipsize="end"
-        android:gravity="bottom|left"
+        android:gravity="bottom|start"
         android:maxLines="1"
         android:scrollHorizontally="true"
         android:singleLine="true"
         android:text="This is a very long text and we need to show three dots in place of the rest"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toRightOf="@+id/groupIcon"
-        app:layout_constraintStart_toEndOf="@+id/groupIcon" />
-
-    <TextView
-        android:id="@+id/groupUnread"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignBaseline="@id/groupName"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentRight="true"
-        android:layout_marginRight="10dp"
-        android:gravity="top|right"
-        android:text="TextView"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintLeft_toRightOf="@+id/peerIcon"
+        app:layout_constraintStart_toEndOf="@+id/peerIcon" />
 </android.support.constraint.ConstraintLayout>

@@ -79,38 +79,45 @@ public class NewConversationFragment extends DialogFragment implements TextView.
         mPeerId.setOnEditorActionListener(this);
     }
 
-    private boolean isValidFriendlyName(String friendlyName) {
-        // TODO: Perform regex on field input to ensure are valid
-        return true;
-    }
-
     private boolean isValidPeerId(String peerId) {
-        // TODO: Perform regex on field input to ensure are valid
-        return true;
+        return IpfsHash.isIpfsHash(peerId);
     }
 
     @Override
     public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
         if(EditorInfo.IME_ACTION_DONE == actionId) {
-            String friendlyName = mFriendlyName.getText().toString();
-            String peerId = mPeerId.getText().toString();
-
-            // TODO: Proper error handling messages
-            if(!isValidFriendlyName(friendlyName)) {
-                return false;
-            }
-            if(!isValidPeerId(peerId)) {
-                return false;
-            }
-
-            // Return entered input
-            NewConversationListener listener = (NewConversationListener) getActivity();
-            listener.onFinishConvoFieldInputs(friendlyName, peerId);
-
-            // Close dialog
-            dismiss();
-            return true;
+            return finishDialog();
         }
         return false;
+    }
+
+    private boolean finishDialog() {
+        String friendlyName = mFriendlyName.getText().toString();
+        String peerId = mPeerId.getText().toString();
+
+        // TODO: Proper error handling messages
+        if(friendlyName.isEmpty()) {
+            mFriendlyName.setError(getResources().getString(R.string.error_field_required));
+            mFriendlyName.requestFocus();
+            return false;
+        }
+        if(peerId.isEmpty()) {
+            mPeerId.setError(getResources().getString(R.string.error_field_required));
+            mPeerId.requestFocus();
+            return false;
+        }
+        if(isValidPeerId(peerId)) {
+            mPeerId.setError(getResources().getString(R.string.error_invalid_hash));
+            mPeerId.requestFocus();
+            return false;
+        }
+
+        // Return entered input
+        NewConversationListener listener = (NewConversationListener) getActivity();
+        listener.onFinishConvoFieldInputs(friendlyName, peerId);
+
+        // Close dialog
+        dismiss();
+        return true;
     }
 }

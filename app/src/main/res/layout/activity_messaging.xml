@@ -19,13 +19,13 @@
         android:id="@+id/messagesIcon"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:layout_marginLeft="10dp"
-        android:layout_marginTop="10dp"
+        android:layout_margin="10dp"
         android:background="@drawable/rounded_drawable"
         android:gravity="center"
         android:text="R"
         android:textColor="@android:color/white"
         android:textSize="20sp"
+        app:layout_constraintBottom_toTopOf="@+id/constraintLayout"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -49,10 +49,12 @@
         android:layout_marginStart="8dp"
         android:layout_marginLeft="10dp"
         android:text="TextView"
+        android:textSize="10sp"
         app:layout_constraintBottom_toBottomOf="@+id/messagesIcon"
         app:layout_constraintStart_toEndOf="@+id/messagesIcon" />
 
     <android.support.constraint.ConstraintLayout
+        android:id="@+id/constraintLayout"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"

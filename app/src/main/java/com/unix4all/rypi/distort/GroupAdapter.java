@@ -6,7 +6,6 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.support.constraint.ConstraintLayout;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -38,13 +37,13 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
 
     @Override
     public void onBindViewHolder(GroupViewHolder holder, int position) {
-        DistortGroup g = mGroupsData.get(position);
+        final DistortGroup g = mGroupsData.get(position);
 
         // Set group colour if active
         if(g.getIsActive().equals(new Boolean(true))) {
-            holder.mGroupContainer.setBackgroundColor(mContext.getResources().getColor(R.color.activeGroupColour));
+            ((GradientDrawable) holder.mGroupContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.activeGroupColour));
         } else {
-            holder.mGroupContainer.setBackgroundColor(mContext.getResources().getColor(R.color.disabledGroupColour));
+            ((GradientDrawable) holder.mGroupContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.disabledGroupColour));
         }
 
         // Set Icon text and colour
@@ -66,21 +65,10 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
         holder.mGroupContainer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent mIntent = new Intent(mContext, MessagingActivity.class);
-
-                // Put authorization fields
-                mIntent.putExtra(DistortAuthParams.EXTRA_HOMESERVER, mAuthParams.getHomeserverAddress());
-                mIntent.putExtra(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, mAuthParams.getHomeserverProtocol());
-                mIntent.putExtra(DistortAuthParams.EXTRA_PEER_ID, mAuthParams.getPeerId());
-                mIntent.putExtra(DistortAuthParams.EXTRA_ACCOUNT_NAME, mAuthParams.getAccountName());
-                mIntent.putExtra(DistortAuthParams.EXTRA_CREDENTIAL, mAuthParams.getCredential());
+                Intent mIntent = new Intent(mContext, PeerConversationActivity.class);
 
                 // Put group fields
-                mIntent.putExtra("name", gvp.mName.getText().toString());
-                mIntent.putExtra("height", heightCount.intValue());
-                mIntent.putExtra("unread", unreadCount.intValue());
-                mIntent.putExtra("icon", gvp.mIcon.getText().toString());
-                mIntent.putExtra("colorIcon", colour);
+                mIntent.putExtra("groupDatabaseId", g.getId());
                 mContext.startActivity(mIntent);
             }
         });

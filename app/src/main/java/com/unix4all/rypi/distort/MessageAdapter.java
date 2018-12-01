@@ -1,6 +1,7 @@
 package com.unix4all.rypi.distort;
 
 import android.content.Context;
+import android.graphics.drawable.GradientDrawable;
 import android.support.constraint.ConstraintLayout;
 import android.support.v7.widget.RecyclerView;
 import android.view.Gravity;
@@ -13,9 +14,11 @@ import java.util.ArrayList;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
 
+    private Context mContext;
     private ArrayList<DistortMessage> mMessagesData;
 
-    public MessageAdapter(ArrayList<DistortMessage> messages) {
+    public MessageAdapter(Context context, ArrayList<DistortMessage> messages) {
+        mContext = context;
         mMessagesData = messages;
         if(mMessagesData == null) {
             mMessagesData = new ArrayList<DistortMessage>();
@@ -33,11 +36,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
         if(mMessagesData.get(position).getType().equals(DistortMessage.TYPE_IN)) {
             InMessage inMsg = (InMessage) mMessagesData.get(position);
 
+            // Set message colour for received message
+            ((GradientDrawable) holder.mMessageContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.messageReceived));
+
             // Set text fields
             String fromStr = inMsg.getFromPeerId();
             if(inMsg.getFromAccount() != null && inMsg.getFromAccount().length() > 0 && !inMsg.getFromAccount().equals("root")) {
                 fromStr += ":" + inMsg.getFromAccount();
             }
+
+            // Set text and gravity
             holder.mFrom.setText(fromStr);
             holder.mFrom.setGravity(Gravity.LEFT);
             holder.mMessage.setText(inMsg.getMessage());
@@ -45,6 +53,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
         } else {
             OutMessage outMsg = (OutMessage) mMessagesData.get(position);
 
+            // Set message colour based on status
+            if(outMsg.getStatus().equals(OutMessage.STATUS_ENQUEUED)) {
+                ((GradientDrawable) holder.mMessageContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.messageEnqueued));
+            } else if(outMsg.getStatus().equals(OutMessage.STATUS_SENT)) {
+                ((GradientDrawable) holder.mMessageContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.messageSent));
+            } else if(outMsg.getStatus().equals(OutMessage.STATUS_CANCELLED)) {
+                ((GradientDrawable) holder.mMessageContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.messageCancelled));
+            }
+
+            // Set text and gravity
             holder.mFrom.setText(R.string.message_from_self);
             holder.mFrom.setGravity(Gravity.RIGHT);
             holder.mMessage.setText(outMsg.getMessage());
@@ -74,7 +92,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
                 ((InMessage)mMessagesData.get(position)).setVerified(inMsg.getVerified());
             } else {
                 OutMessage outMsg = (OutMessage) msg;
-                ((OutMessage)mMessagesData.get(position)).setLastStatusChange(outMsg.getmLastStatusChange());
+                ((OutMessage)mMessagesData.get(position)).setLastStatusChange(outMsg.getLastStatusChange());
                 ((OutMessage)mMessagesData.get(position)).setStatus(outMsg.getStatus());
             }
 

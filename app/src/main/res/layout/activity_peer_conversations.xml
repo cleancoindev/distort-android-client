@@ -2,28 +2,28 @@
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/groupConstraintLayout"
+    android:id="@+id/peerConversationsConstraintLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ConversationsActivity">
+    tools:context=".PeerConversationActivity">
 
     <android.support.v7.widget.Toolbar
-        android:id="@+id/groupToolbar"
+        android:id="@+id/peerConversationsToolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorPrimary"
         android:minHeight="?attr/actionBarSize"
         android:theme="?attr/actionBarTheme"
-        app:layout_constraintBottom_toTopOf="@+id/groupsView" />
+        app:layout_constraintBottom_toTopOf="@+id/peerConversationsView" />
 
     <android.support.v7.widget.RecyclerView
-        android:id="@+id/groupsView"
+        android:id="@+id/peerConversationsView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:scrollbars="vertical"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/groupToolbar"></android.support.v7.widget.RecyclerView>
+        app:layout_constraintTop_toBottomOf="@+id/peerConversationsToolbar" />
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/fab"
