@@ -27,39 +27,8 @@
         android:layout_toRightOf="@+id/groupIcon"
         android:gravity="top"
         android:text="TextView"
-        android:textSize="14sp"
+        android:textSize="16sp"
         android:textStyle="bold"
         app:layout_constraintLeft_toLeftOf="@+id/groupIcon"
         app:layout_constraintStart_toEndOf="@+id/groupIcon" />
-
-    <TextView
-        android:id="@+id/groupDetail"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/groupName"
-        android:layout_marginStart="10dp"
-        android:layout_marginLeft="10dp"
-        android:layout_toEndOf="@+id/groupIcon"
-        android:layout_toRightOf="@+id/groupIcon"
-        android:ellipsize="end"
-        android:gravity="bottom|left"
-        android:maxLines="1"
-        android:scrollHorizontally="true"
-        android:singleLine="true"
-        android:text="This is a very long text and we need to show three dots in place of the rest"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toRightOf="@+id/groupIcon"
-        app:layout_constraintStart_toEndOf="@+id/groupIcon" />
-
-    <TextView
-        android:id="@+id/groupUnread"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignBaseline="@id/groupName"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentRight="true"
-        android:layout_marginRight="10dp"
-        android:gravity="top|right"
-        android:text="TextView"
-        app:layout_constraintEnd_toEndOf="parent" />
 </android.support.constraint.ConstraintLayout>

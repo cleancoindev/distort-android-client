@@ -12,16 +12,12 @@ public class DistortGroup {
     private final String mId;
     private String mName;
     private Integer mSubgroupIndex;
-    private Integer mHeight;
-    private Integer mLastReadIndex;
     private @Nullable Boolean mIsActive;
 
-    DistortGroup(String name, String id, Integer subgroupIndex, Integer height, Integer lastReadIndex, @Nullable Boolean isActive) {
+    DistortGroup(String name, String id, Integer subgroupIndex, @Nullable Boolean isActive) {
         mName = name;
         mId = id;
         mSubgroupIndex = subgroupIndex;
-        mHeight = height;
-        mLastReadIndex = lastReadIndex;
         mIsActive = isActive;
     }
 
@@ -35,12 +31,6 @@ public class DistortGroup {
     public Integer getSubgroupIndex() {
         return mSubgroupIndex;
     }
-    public Integer getHeight() {
-        return mHeight;
-    }
-    public Integer getLastReadIndex() {
-        return mLastReadIndex;
-    }
     public @Nullable Boolean getIsActive() {
         return mIsActive;
     }
@@ -51,12 +41,6 @@ public class DistortGroup {
     }
     public void setSubgroupIndex(Integer index) {
         mSubgroupIndex = index;
-    }
-    public void setHeight(Integer height) {
-        mHeight = height;
-    }
-    public void setLastReadIndex(Integer lastReadIndex) {
-        mLastReadIndex = lastReadIndex;
     }
     public void setIsActive(@Nullable Boolean isActive) {
         if(isActive != null) {
@@ -69,8 +53,6 @@ public class DistortGroup {
         String name = null;
         String id = null;
         Integer subgroupIndex = null;
-        Integer height = null;
-        Integer lastReadIndex = null;
         Boolean isActive = null;
 
         // Read all fields from group
@@ -84,10 +66,6 @@ public class DistortGroup {
                 id = json.nextString();
             } else if(key.equals("subgroupIndex")) {
                 subgroupIndex = json.nextInt();
-            } else if(key.equals("height")) {
-                height = json.nextInt();
-            } else if(key.equals("lastReadIndex")) {
-                lastReadIndex = json.nextInt();
             } else if(key.equals("isActive")) {
                 isActive = json.nextBoolean();
             } else {
@@ -96,9 +74,9 @@ public class DistortGroup {
         }
         json.endObject();
 
-        if(name != null && id != null && subgroupIndex != null && height != null && lastReadIndex != null) {
-            Log.d("READ-GROUP", "Group ( " + name + "," + subgroupIndex + "," + height+ "," + lastReadIndex + "," + id + " )");
-            return new DistortGroup(name, id, subgroupIndex, height, lastReadIndex, isActive);
+        if(name != null && id != null && subgroupIndex != null) {
+            Log.d("READ-GROUP", "Group ( " + name + "," + subgroupIndex + "," + id + " )");
+            return new DistortGroup(name, id, subgroupIndex, isActive);
         } else {
             throw new IOException();
         }
@@ -111,8 +89,6 @@ public class DistortGroup {
         json.name("name").value(mName);
         json.name("_id").value(mId);
         json.name("subgroupIndex").value(mSubgroupIndex);
-        json.name("height").value(mHeight);
-        json.name("lastReadIndex").value(mLastReadIndex);
         if(mIsActive != null) {
             json.name("isActive").value(mIsActive);
         }

@@ -383,6 +383,9 @@ public class LoginActivity extends AppCompatActivity {
                 preferenceEditor.putString(EXTRA_CREDENTIAL, mToken);
                 preferenceEditor.commit();
 
+                // Start background thread to manage a local database in sync with remote
+                DistortBackgroundService.startActionScheduleServices(getApplicationContext());
+
                 Intent intent = new Intent(mContext, GroupsActivity.class);
                 startActivity(intent);
             } else {

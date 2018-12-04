@@ -18,15 +18,13 @@ import java.util.Random;
 public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
     private ArrayList<DistortGroup> mGroupsData;
     private Context mContext;
-    private DistortAuthParams mAuthParams;
 
-    public GroupAdapter(Context context, ArrayList<DistortGroup> groups, DistortAuthParams authParams) {
+    public GroupAdapter(Context context, ArrayList<DistortGroup> groups) {
         mGroupsData = groups;
         if(mGroupsData == null) {
-            mGroupsData = new ArrayList<DistortGroup>();
+            mGroupsData = new ArrayList<>();
         }
         mContext = context;
-        mAuthParams = authParams;
     }
 
     @Override
@@ -40,7 +38,7 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
         final DistortGroup g = mGroupsData.get(position);
 
         // Set group colour if active
-        if(g.getIsActive().equals(new Boolean(true))) {
+        if(Boolean.valueOf(true).equals(g.getIsActive())) {
             ((GradientDrawable) holder.mGroupContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.activeGroupColour));
         } else {
             ((GradientDrawable) holder.mGroupContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.disabledGroupColour));
@@ -54,14 +52,7 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
 
         // Set text fields
         holder.mName.setText(g.getName());
-        final Integer heightCount = g.getHeight();
-        holder.mDetails.setText(String.format(Locale.US, "%s: %d",
-                mContext.getResources().getString(R.string.messages_total_height), heightCount));
-        final Integer unreadCount = g.getHeight() - g.getLastReadIndex() - 1;
-        holder.mUnread.setText(String.format(Locale.US, "%s: %d",
-                mContext.getResources().getString(R.string.messages_unread), unreadCount));
-
-        final GroupViewHolder gvp = holder;
+        final GroupViewHolder gvh = holder;
         holder.mGroupContainer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -93,8 +84,6 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
         } else {
             mGroupsData.get(position).setName(group.getName());
             mGroupsData.get(position).setSubgroupIndex(group.getSubgroupIndex());
-            mGroupsData.get(position).setHeight(group.getHeight());
-            mGroupsData.get(position).setLastReadIndex(group.getLastReadIndex());
             mGroupsData.get(position).setIsActive(group.getIsActive());
 
             notifyItemChanged(position);
@@ -110,8 +99,6 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
 class GroupViewHolder extends RecyclerView.ViewHolder {
     TextView mIcon;
     TextView mName;
-    TextView mDetails;
-    TextView mUnread;
     ConstraintLayout mGroupContainer;
 
     public GroupViewHolder(View itemView) {
@@ -119,8 +106,6 @@ class GroupViewHolder extends RecyclerView.ViewHolder {
 
         mIcon = itemView.findViewById(R.id.groupIcon);
         mName = itemView.findViewById(R.id.groupName);
-        mDetails = itemView.findViewById(R.id.groupDetail);
-        mUnread = itemView.findViewById(R.id.groupUnread);
         mGroupContainer = itemView.findViewById(R.id.groupContainer);
     }
 }

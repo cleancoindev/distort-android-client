@@ -16,13 +16,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
 
     private Context mContext;
     private ArrayList<DistortMessage> mMessagesData;
+    private String mFriendlyName;
 
-    public MessageAdapter(Context context, ArrayList<DistortMessage> messages) {
+    public MessageAdapter(Context context, ArrayList<DistortMessage> messages, String friendlyName) {
         mContext = context;
         mMessagesData = messages;
         if(mMessagesData == null) {
-            mMessagesData = new ArrayList<DistortMessage>();
+            mMessagesData = new ArrayList<>();
         }
+        mFriendlyName = friendlyName;
     }
 
     @Override
@@ -40,10 +42,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
             ((GradientDrawable) holder.mMessageContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.messageReceived));
 
             // Set text fields
-            String fromStr = inMsg.getFromPeerId();
-            if(inMsg.getFromAccount() != null && inMsg.getFromAccount().length() > 0 && !inMsg.getFromAccount().equals("root")) {
-                fromStr += ":" + inMsg.getFromAccount();
-            }
+            String fromStr = mFriendlyName;
 
             // Set text and gravity
             holder.mFrom.setText(fromStr);

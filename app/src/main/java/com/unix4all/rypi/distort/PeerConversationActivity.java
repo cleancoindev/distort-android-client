@@ -1,13 +1,12 @@
 package com.unix4all.rypi.distort;
 
-import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.content.LocalBroadcastManager;
@@ -16,19 +15,13 @@ import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
 
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.net.ssl.HttpsURLConnection;
 
 public class PeerConversationActivity extends AppCompatActivity implements NewConversationFragment.NewConversationListener {
     private final PeerConversationActivity mActivity = this;
@@ -37,9 +30,10 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
     private DistortGroup mGroup;
 
     private RecyclerView mPeerConversationsView;
-    private PeerAdapter mPeerAdapter;
+    private ConversationAdapter mConversationAdapter;
 
-    private PeerServiceBroadcastReceiver mServiceReceiver;
+    private PeerServiceBroadcastReceiver mPeerServiceReceiver;
+    private ConversationServiceBroadcastReceiver mConversationServiceReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,8 +70,30 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         mPeerConversationsView.addItemDecoration(new DividerItemDecoration(PeerConversationActivity.this, DividerItemDecoration.VERTICAL));
 
         // Prepare for datasets
-        mPeerAdapter = new PeerAdapter(PeerConversationActivity.this, new ArrayList<DistortPeer>(), mGroup.getId());
-        mPeerConversationsView.setAdapter(mPeerAdapter);
+        HashMap<String, DistortConversation> conversationSet = getConversationsFromLocal();
+        HashMap<String, DistortPeer> peerSet = getPeersFromLocal();
+        ArrayList<DistortConversation> conversations = new ArrayList<>();
+
+        // Add all conversations and optionally find associated peer
+        for(Map.Entry<String, DistortConversation> conversation : conversationSet.entrySet()) {
+            DistortConversation c = conversation.getValue();
+            String fullAddress = DistortPeer.toFullAddress(c.getPeerId(), c.getAccountName());
+            if(peerSet.get(fullAddress) != null) {
+                c.setFriendlyName(peerSet.get(fullAddress).getNickname());
+            }
+            conversations.add(c);
+        }
+        mConversationAdapter = new ConversationAdapter(PeerConversationActivity.this, conversations);
+        mPeerConversationsView.setAdapter(mConversationAdapter);
+
+        // Add peers which publicly belong to this group
+        for(Map.Entry<String, DistortPeer> peer : peerSet.entrySet()) {
+            DistortPeer p = peer.getValue();
+            if(p.getGroups().get(mGroup.getName()) != null) {
+                DistortConversation c = new DistortConversation(null, mGroup.getId(), p.getPeerId(), p.getAccountName(), 0, new Date(0));
+                mConversationAdapter.addOrUpdateConversation(c);
+            }
+        }
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -95,6 +111,9 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
     private HashMap<String, DistortPeer> getPeersFromLocal() {
         return DistortBackgroundService.getLocalPeers(this);
     }
+    private HashMap<String, DistortConversation> getConversationsFromLocal() {
+        return DistortBackgroundService.getLocalConversations(this);
+    }
 
     private void showAddNewPeer() {
         FragmentManager fm = getSupportFragmentManager();
@@ -110,19 +129,28 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
     // Handle successful retrieval of peers
     @Override
     protected void onStart() {
-        mServiceReceiver = new PeerServiceBroadcastReceiver();
+        mPeerServiceReceiver = new PeerServiceBroadcastReceiver();
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_PEERS);
-        LocalBroadcastManager.getInstance(this).registerReceiver(mServiceReceiver, intentFilter);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mPeerServiceReceiver, intentFilter);
 
         // Start fetch peers task
-        DistortBackgroundService.startActionFetchPeers(getApplicationContext());
+        // DistortBackgroundService.startActionFetchPeers(getApplicationContext());
+
+        mConversationServiceReceiver = new ConversationServiceBroadcastReceiver();
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_CONVERSATIONS);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mConversationServiceReceiver, intentFilter);
+
+        // Start fetch peers task
+        // DistortBackgroundService.startActionFetchPeers(getApplicationContext());
 
         super.onStart();
     }
     @Override
     protected void onStop() {
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(mServiceReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mPeerServiceReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mConversationServiceReceiver);
         super.onStop();
     }
     public class PeerServiceBroadcastReceiver extends BroadcastReceiver {
@@ -130,14 +158,47 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         public void onReceive(Context context, Intent intent) {
             Log.i("DISTORT-RECEIVE", "Received Fetch Peers response.");
 
+            final HashMap<String, DistortPeer> allPeers = getPeersFromLocal();
+
             // Can only update UI from UI thread
             mActivity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    HashMap<String, DistortPeer> allPeers = getPeersFromLocal();
-
                     for(Map.Entry<String, DistortPeer> peer : allPeers.entrySet()) {
-                        mPeerAdapter.addOrUpdatePeer(peer.getValue());
+                        DistortPeer p = peer.getValue();
+
+                        // Ensure peer belongs to group before allowing to message in group
+                        if(p.getGroups().get(mGroup.getName()) != null) {
+                            DistortConversation c = new DistortConversation(null, mGroup.getId(), p.getPeerId(), p.getAccountName(), 0, new Date(0));
+                            mConversationAdapter.addOrUpdateConversation(c);
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    public class ConversationServiceBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.i("DISTORT-RECEIVE", "Received Fetch Conversations response.");
+
+            final HashMap<String, DistortConversation> conversations = getConversationsFromLocal();
+            final HashMap<String, DistortPeer> peers = getPeersFromLocal();
+
+            // Can only update UI from UI thread
+            mActivity.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    for(Map.Entry<String, DistortConversation> conversation : conversations.entrySet()) {
+                        DistortConversation c = conversation.getValue();
+
+                        // Set nickname to conversation if exists
+                        String fullAddress = DistortPeer.toFullAddress(c.getPeerId(), c.getAccountName());
+                        if(peers.get(fullAddress) != null) {
+                            c.setFriendlyName(peers.get(fullAddress).getNickname());
+                        }
+                        mConversationAdapter.addOrUpdateConversation(c);
                     }
                 }
             });

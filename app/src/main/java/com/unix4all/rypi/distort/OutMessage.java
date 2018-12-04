@@ -13,8 +13,6 @@ import java.util.Date;
 import java.util.Locale;
 
 public class OutMessage extends DistortMessage {
-    private String mToPeerId;
-    private String mToAccount;
     private String mStatus;
     private Date mLastStatusChange;
 
@@ -26,12 +24,6 @@ public class OutMessage extends DistortMessage {
     public String getType() {
         return this.TYPE_OUT;
     }
-    public String getToPeerId() {
-        return mToPeerId;
-    }
-    public String getToAccount() {
-        return mToAccount;
-    }
     public String getStatus() {
         return mStatus;
     }
@@ -40,12 +32,6 @@ public class OutMessage extends DistortMessage {
     }
 
     // Setters
-    void setToPeerId(String toPeerID) {
-        mToPeerId = toPeerID;
-    }
-    void setToAccount(String toAccount) {
-        mToAccount = toAccount;
-    }
     void setStatus(String status) {
         mStatus = status;
     }
@@ -66,33 +52,13 @@ public class OutMessage extends DistortMessage {
         jsonReader.beginObject();
         while(jsonReader.hasNext()) {
             String key = jsonReader.nextName();
-            Log.d("GET-OUT-MESSAGE", key);
-
-            if(key.equals("to")) {
-                if(jsonReader.peek() == JsonToken.BEGIN_OBJECT) {
-                    jsonReader.beginObject();
-                    while (jsonReader.hasNext()) {
-                        String toKey = jsonReader.nextName();
-                        Log.d("GET-OUT-MESSAGE-TO", key);
-
-                        if (toKey.equals("accountName")) {
-                            message.setToAccount(jsonReader.nextString());
-                        } else if (toKey.equals("peerId")) {
-                            message.setToPeerId(jsonReader.nextString());
-                        } else {
-                            jsonReader.skipValue();
-                        }
-                    }
-                    jsonReader.endObject();
-                } else {
-                    // To value is a cert object, or ID of cert object. The ID is meaningless to us
-                    jsonReader.skipValue();
-                }
+            if(key.equals("_id")) {
+                message.setId(jsonReader.nextString());
+            } else if(key.equals("conversation")) {
+                message.setConversationId(jsonReader.nextString());
             } else if(key.equals("status")) {
                 message.setStatus(jsonReader.nextString());
-            } else if(key.equals("_id")) {
-                message.setId(jsonReader.nextString());
-            } else if(key.equals("index")) {
+            } else  if(key.equals("index")) {
                 message.setIndex(jsonReader.nextInt());
             } else if(key.equals("message")) {
                 message.setMessage(jsonReader.nextString());
@@ -107,12 +73,14 @@ public class OutMessage extends DistortMessage {
         return message;
     }
 
-    public static ArrayList<OutMessage> readArrayJson(JsonReader jsonReader) throws IOException {
+    public static ArrayList<OutMessage> readArrayJsonForConversation(JsonReader jsonReader, String conversationDatabaseId) throws IOException {
         ArrayList<OutMessage> messages = new ArrayList<>();
 
         jsonReader.beginArray();
         while(jsonReader.hasNext()) {
-            messages.add(readMessageJson(jsonReader));
+            OutMessage m = readMessageJson(jsonReader);
+            m.setConversationId(conversationDatabaseId);
+            messages.add(m);
         }
         jsonReader.endArray();
 
@@ -122,10 +90,6 @@ public class OutMessage extends DistortMessage {
     // Write this object to JSON
     public void writeMessageJson(JsonWriter json) throws IOException {
         json.beginObject();
-        json.name("to").beginObject();
-            json.name("accountName").value(mToAccount);
-            json.name("peerId").value(mToPeerId);
-        json.endObject();
         json.name("status").value(mStatus);
         json.name("_id").value(getId());
         json.name("index").value(getIndex());

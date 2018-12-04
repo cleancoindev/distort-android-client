@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.drawable.GradientDrawable;
 import android.os.AsyncTask;
+import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -34,6 +35,12 @@ import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_ACCOUNT_NAME;
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_CREDENTIAL;
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_HOMESERVER;
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL;
+import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_PEER_ID;
+
 public class MessagingActivity extends AppCompatActivity {
     private final MessagingActivity mActivity = this;
 
@@ -45,7 +52,11 @@ public class MessagingActivity extends AppCompatActivity {
     private TextView mFullAddress;
 
     // Peer we are messaging
-    private DistortPeer mPeer;
+    private String mPeerId;
+    private String mAccountName;
+    private String mFriendlyName;
+    private @Nullable DistortPeer mPeer;
+    private @Nullable DistortConversation mConversation;
 
     // Group we are messaging on
     private DistortGroup mGroup;
@@ -78,21 +89,36 @@ public class MessagingActivity extends AppCompatActivity {
         mIcon = findViewById(R.id.messagesIcon);
         mName = findViewById(R.id.messagesName);
         mFullAddress = findViewById(R.id.messagesDetails);
-        ArrayList<DistortMessage> conversationMessages;
+        ArrayList<DistortMessage> conversationMessages = new ArrayList<>();
         Bundle bundle = getIntent().getExtras();
         if(bundle != null) {
             mIcon.setText(bundle.getString("icon"));
             ((GradientDrawable) mIcon.getBackground()).setColor(bundle.getInt("colorIcon"));
 
             // Setup peer info
-            String peerDatabaseId = bundle.getString("peerDatabaseId");
-            mPeer = getPeerFromLocal(peerDatabaseId);
-            mName.setText(mPeer.getNickname());
-            mFullAddress.setText(mPeer.getFullAddress());
+            mPeerId = bundle.getString("peerId");
+            mAccountName = bundle.getString("accountame");
+            String fullAddress = DistortPeer.toFullAddress(mPeerId, mAccountName);
+            mFullAddress.setText(fullAddress);
+            mPeer = getPeerFromLocal(fullAddress);
+
+            mFriendlyName = bundle.getString("friendlyName");
+            if(mFriendlyName == null) {
+                mFriendlyName = mPeer.getFriendlyName();
+                Log.d("ACTIVITY-MESSAGES", "Set nickname: " + mPeer.getNickname());
+            }
+            
 
             String groupDatabaseId = bundle.getString("groupDatabaseId");
             mGroup = getGroupFromLocal(groupDatabaseId);
-            conversationMessages = getMessagesFromLocal(groupDatabaseId, mPeer.getFullAddress());
+
+            String conversationId = bundle.getString("conversationDatabaseId");
+            if(conversationId != null && !conversationId.isEmpty()) {
+                mConversation = getConversationFromLocal(conversationId);
+                conversationMessages = getMessagesFromLocal(conversationId);
+
+            }
+            mName.setText(mFriendlyName);
         } else {
             throw new RuntimeException("No bundle given to PeerConversationActivity");
         }
@@ -101,8 +127,12 @@ public class MessagingActivity extends AppCompatActivity {
         mMessagesView = (RecyclerView) findViewById(R.id.messagesView);
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(MessagingActivity.this, LinearLayoutManager.VERTICAL, false);
         mMessagesView.setLayoutManager(linearLayoutManager);
-        mMessagesAdapter = new MessageAdapter(this, conversationMessages);
+        mMessagesAdapter = new MessageAdapter(this, conversationMessages, mFriendlyName);
         mMessagesView.setAdapter(mMessagesAdapter);
+        int position = mMessagesAdapter.getItemCount() - 1;
+        if(position > 0) {
+            mMessagesView.smoothScrollToPosition(position);
+        }
 
         // Setup other fields
         mSendMessageView = (TextView) findViewById(R.id.sendMessageView);
@@ -124,12 +154,14 @@ public class MessagingActivity extends AppCompatActivity {
     private DistortGroup getGroupFromLocal(String groupDatabaseId) {
         return DistortBackgroundService.getLocalGroups(this).get(groupDatabaseId);
     }
-    private DistortPeer getPeerFromLocal(String peerDatabaseId) {
-        return DistortBackgroundService.getLocalPeers(this).get(peerDatabaseId);
+    private DistortConversation getConversationFromLocal(String conversationDatabaseId) {
+        return DistortBackgroundService.getLocalConversations(this).get(conversationDatabaseId);
     }
-    private ArrayList<DistortMessage> getMessagesFromLocal(String groupDatabaseId, String peerFullAddress) {
-        HashMap<String, ArrayList<DistortMessage>> peerConvos = DistortBackgroundService.getLocalMessages(this, groupDatabaseId);
-        return peerConvos.get(peerFullAddress);
+    private DistortPeer getPeerFromLocal(String peerFullAddress) {
+        return DistortBackgroundService.getLocalPeers(this).get(peerFullAddress);
+    }
+    private ArrayList<DistortMessage> getMessagesFromLocal(String conversationDatabaseId) {
+        return DistortBackgroundService.getLocalConversationMessages(this, conversationDatabaseId);
     }
 
     // Handle successful retrieval of groups
@@ -140,7 +172,7 @@ public class MessagingActivity extends AppCompatActivity {
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_MESSAGES);
         LocalBroadcastManager.getInstance(this).registerReceiver(mServiceReceiver, intentFilter);
 
-        DistortBackgroundService.startActionFetchMessages(getApplicationContext());
+        // DistortBackgroundService.startActionFetchMessages(getApplicationContext());
         super.onStart();
     }
     @Override
@@ -148,21 +180,48 @@ public class MessagingActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mServiceReceiver);
         super.onStop();
     }
+    @Override
+    protected void onResume() {
+        SharedPreferences sharedPref = this.getSharedPreferences(
+                getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
+        SharedPreferences.Editor preferenceEditor = sharedPref.edit();
+        preferenceEditor.putBoolean("active", true);
+        preferenceEditor.commit();
+
+        super.onResume();
+    }
+    @Override
+    protected void onPause() {
+        SharedPreferences sharedPref = this.getSharedPreferences(
+                getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
+        SharedPreferences.Editor preferenceEditor = sharedPref.edit();
+        preferenceEditor.putBoolean("active", false);
+        preferenceEditor.commit();
+
+        super.onPause();
+    }
     public class MessageServiceBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            // Can only update UI from UI thread
-            mActivity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    ArrayList<DistortMessage> messages = getMessagesFromLocal(mGroup.getId(), mPeer.getFullAddress());
-                    for(int i = 0; i < messages.size(); i++) {
-                        mMessagesAdapter.addOrUpdateMessage(messages.get(i));
+            String conversationDatabaseId = intent.getStringExtra("conversationDatabaseId");
+            if(conversationDatabaseId != null && !conversationDatabaseId.isEmpty()) {
+                mConversation = getConversationFromLocal(conversationDatabaseId);
+                final ArrayList<DistortMessage> messages = getMessagesFromLocal(conversationDatabaseId);
+
+                // Can only update UI from UI thread
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        for (int i = 0; i < messages.size(); i++) {
+                            mMessagesAdapter.addOrUpdateMessage(messages.get(i));
+                        }
+                        int position = mMessagesAdapter.getItemCount() - 1;
+                        if (position > 0) {
+                            mMessagesView.smoothScrollToPosition(position);
+                        }
                     }
-                    Integer position = mMessagesAdapter.getItemCount()-1;
-                    mMessagesView.smoothScrollToPosition(position);
-                }
-            });
+                });
+            }
         }
     }
 
@@ -189,9 +248,9 @@ public class MessagingActivity extends AppCompatActivity {
                 String url = mLoginParams.getHomeserverAddress() + "groups/" + URLEncoder.encode(mGroup.getName());
 
                 HashMap<String, String> bodyParams = new HashMap<>();
-                bodyParams.put("toPeerId", mPeer.getPeerId());
-                if(mPeer.getAccountName() != null && !mPeer.getAccountName().isEmpty()) {
-                    bodyParams.put("toAccountName", mPeer.getAccountName());
+                bodyParams.put("toPeerId", mPeerId);
+                if(mAccountName != null && !mAccountName.isEmpty()) {
+                    bodyParams.put("toAccountName", mAccountName);
                 }
                 bodyParams.put("message", mMessageEdit.getText().toString());
 

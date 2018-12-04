@@ -11,12 +11,12 @@ import java.util.Map;
 
 public class DistortPeer {
     private final String mId;
-    private String mNickname;
+    private @Nullable String mNickname;
     private String mPeerId;
     private String mAccountName;
     private HashMap<String, Integer> mGroups;
 
-    DistortPeer(String id, String nickname, String peerId, @Nullable String accountName, @Nullable ArrayList<String> groupsIndexCouple) {
+    DistortPeer(String id, @Nullable  String nickname, String peerId, @Nullable String accountName, @Nullable ArrayList<String> groupsIndexCouple) {
         mId = id;
         mNickname = nickname;
         mPeerId = peerId;
@@ -63,6 +63,15 @@ public class DistortPeer {
     public String getNickname() {
         return mNickname;
     }
+    public String getFriendlyName() {
+        if(mNickname != null && !mNickname.isEmpty()) {
+            return mNickname;
+        } else if(!mAccountName.isEmpty() && !mAccountName.equals("root")) {
+            return mAccountName;
+        } else {
+            return getFullAddress();
+        }
+    }
     public String getPeerId() {
         return mPeerId;
     }
@@ -77,8 +86,10 @@ public class DistortPeer {
     }
 
     // Setters
-    public void setNickname(String nickname) {
-        mNickname = nickname;
+    public void setNickname(@Nullable String nickname) {
+        if(nickname != null) {
+            mNickname = nickname;
+        }
     }
     public void setPeerId(String peerId) {
         mPeerId = peerId;

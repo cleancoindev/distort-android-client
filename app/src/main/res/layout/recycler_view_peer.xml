@@ -36,8 +36,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@+id/peerNickname"
-        android:layout_marginStart="10dp"
-        android:layout_marginLeft="10dp"
+        android:layout_marginStart="11dp"
+        android:layout_marginLeft="11dp"
         android:layout_toEndOf="@+id/peerIcon"
         android:layout_toRightOf="@+id/peerIcon"
         android:ellipsize="end"
@@ -46,6 +46,7 @@
         android:scrollHorizontally="true"
         android:singleLine="true"
         android:text="This is a very long text and we need to show three dots in place of the rest"
+        android:textSize="10sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toRightOf="@+id/peerIcon"
         app:layout_constraintStart_toEndOf="@+id/peerIcon" />

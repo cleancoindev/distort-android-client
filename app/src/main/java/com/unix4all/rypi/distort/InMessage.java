@@ -11,20 +11,12 @@ import java.util.ArrayList;
 import java.util.Date;
 
 public class InMessage extends DistortMessage {
-    private String mFromPeerId;
-    private String mFromAccount;
     private Boolean mVerified;
     private Date mDateReceived;
 
     // Getters
     public String getType() {
         return this.TYPE_IN;
-    }
-    public String getFromPeerId() {
-        return mFromPeerId;
-    }
-    public String getFromAccount() {
-        return mFromAccount;
     }
     public Boolean getVerified() {
         return mVerified;
@@ -34,12 +26,6 @@ public class InMessage extends DistortMessage {
     }
 
     // Setters
-    void setFromPeerId(String toPeerID) {
-        mFromPeerId = toPeerID;
-    }
-    void setFromAccount(String toAccount) {
-        mFromAccount = toAccount;
-    }
     void setVerified(Boolean verified) {
         mVerified = verified;
     }
@@ -60,27 +46,12 @@ public class InMessage extends DistortMessage {
         jsonReader.beginObject();
         while(jsonReader.hasNext()) {
             String key = jsonReader.nextName();
-            Log.d("GET-IN-MESSAGE", key);
-
-            if(key.equals("from")) {
-                jsonReader.beginObject();
-                while(jsonReader.hasNext()) {
-                    String fromKey = jsonReader.nextName();
-                    Log.d("GET-IN-MESSAGE-FROM", key);
-
-                    if(fromKey.equals("accountName")) {
-                        message.setFromAccount(jsonReader.nextString());
-                    } else if (fromKey.equals("peerId")) {
-                        message.setFromPeerId(jsonReader.nextString());
-                    } else {
-                        jsonReader.skipValue();
-                    }
-                }
-                jsonReader.endObject();
+            if(key.equals("_id")) {
+                message.setId(jsonReader.nextString());
+            } else if(key.equals("conversation")) {
+                message.setConversationId(jsonReader.nextString());
             } else if(key.equals("verified")) {
                 message.setVerified(jsonReader.nextBoolean());
-            } else if(key.equals("_id")) {
-                message.setId(jsonReader.nextString());
             } else if(key.equals("index")) {
                 message.setIndex(jsonReader.nextInt());
             } else if(key.equals("message")) {
@@ -95,12 +66,14 @@ public class InMessage extends DistortMessage {
 
         return message;
     }
-    public static ArrayList<InMessage> readArrayJson(JsonReader jsonReader) throws IOException {
+    public static ArrayList<InMessage> readArrayJsonForConversation(JsonReader jsonReader, String conversationDatabseId) throws IOException {
         ArrayList<InMessage> messages = new ArrayList<>();
 
         jsonReader.beginArray();
         while(jsonReader.hasNext()) {
-            messages.add(readMessageJson(jsonReader));
+            InMessage m = readMessageJson(jsonReader);
+            m.setConversationId(conversationDatabseId);
+            messages.add(m);
         }
         jsonReader.endArray();
 
@@ -110,10 +83,6 @@ public class InMessage extends DistortMessage {
     // Write this object to JSON
     public void writeMessageJson(JsonWriter json) throws IOException {
         json.beginObject();
-        json.name("from").beginObject();
-            json.name("accountName").value(mFromAccount);
-            json.name("peerId").value(mFromPeerId);
-        json.endObject();
         json.name("verified").value(mVerified);
         json.name("_id").value(getId());
         json.name("index").value(getIndex());

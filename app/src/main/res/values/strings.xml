@@ -36,4 +36,7 @@
     <string name="peers_local_key">com.unix4all.rypi.distort.PEERS_LOCAL</string>
     <string name="groups_local_key">com.unix4all.rypi.distort.GROUPS_LOCAL</string>
     <string name="title_activity_groups">Anonymity Groups</string>
+    <string name="notification_messages_title">DistoRt</string>
+    <string name="notification_messages_text">Received new message(s) ...</string>
+    <string name="messaging_preference_key">com.unix4all.rypi.distort.MESSAGING_PREFERENCES</string>
 </resources>

@@ -6,7 +6,7 @@ import java.util.Locale;
 public abstract class DistortMessage {
     private String mId;
     private String mMessage;
-    private DistortGroup mGroup;
+    private String mConversationId;
     private Integer mIndex;
 
     public static final String TYPE_IN = "IN";
@@ -19,8 +19,8 @@ public abstract class DistortMessage {
     public String getId() {
         return mId;
     }
-    public DistortGroup getGroup() {
-        return mGroup;
+    public String getConversationId() {
+        return mConversationId;
     }
     public Integer getIndex() {
         return mIndex;
@@ -33,8 +33,8 @@ public abstract class DistortMessage {
     public void setId(String id) {
         mId = id;
     }
-    public void setGroup(DistortGroup group) {
-        mGroup = group;
+    public void setConversationId(String conversationDatabaseId) {
+        mConversationId = conversationDatabaseId;
     }
     public void setIndex(Integer index) {
         mIndex = index;

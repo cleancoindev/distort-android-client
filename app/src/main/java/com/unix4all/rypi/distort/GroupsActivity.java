@@ -68,7 +68,13 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         mGroupsView.addItemDecoration(new DividerItemDecoration(GroupsActivity.this, DividerItemDecoration.VERTICAL));
 
         // Prepare for datasets
-        mGroupsAdapter = new GroupAdapter(GroupsActivity.this, new ArrayList<DistortGroup>(), mLoginParams);
+        HashMap<String, DistortGroup> groupSet = getGroupsFromLocal();
+        ArrayList<DistortGroup> groups = new ArrayList<DistortGroup>();
+        for(Map.Entry<String, DistortGroup> group : groupSet.entrySet()) {
+            groups.add(group.getValue());
+        }
+
+        mGroupsAdapter = new GroupAdapter(GroupsActivity.this, groups);
         mGroupsView.setAdapter(mGroupsAdapter);
 
         // Fetch account parameters
@@ -108,7 +114,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_GROUPS);
         LocalBroadcastManager.getInstance(this).registerReceiver(mServiceReceiver, intentFilter);
 
-        DistortBackgroundService.startActionFetchGroups(getApplicationContext());
+        /// DistortBackgroundService.startActionFetchGroups(getApplicationContext());
         super.onStart();
     }
     @Override
