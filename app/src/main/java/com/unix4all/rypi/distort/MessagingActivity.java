@@ -31,6 +31,7 @@ import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -107,7 +108,6 @@ public class MessagingActivity extends AppCompatActivity {
                 mFriendlyName = mPeer.getFriendlyName();
                 Log.d("ACTIVITY-MESSAGES", "Set nickname: " + mPeer.getNickname());
             }
-            
 
             String groupDatabaseId = bundle.getString("groupDatabaseId");
             mGroup = getGroupFromLocal(groupDatabaseId);
@@ -115,8 +115,6 @@ public class MessagingActivity extends AppCompatActivity {
             String conversationId = bundle.getString("conversationDatabaseId");
             if(conversationId != null && !conversationId.isEmpty()) {
                 mConversation = getConversationFromLocal(conversationId);
-                conversationMessages = getMessagesFromLocal(conversationId);
-
             }
             mName.setText(mFriendlyName);
         } else {
@@ -129,10 +127,6 @@ public class MessagingActivity extends AppCompatActivity {
         mMessagesView.setLayoutManager(linearLayoutManager);
         mMessagesAdapter = new MessageAdapter(this, conversationMessages, mFriendlyName);
         mMessagesView.setAdapter(mMessagesAdapter);
-        int position = mMessagesAdapter.getItemCount() - 1;
-        if(position > 0) {
-            mMessagesView.smoothScrollToPosition(position);
-        }
 
         // Setup other fields
         mSendMessageView = (TextView) findViewById(R.id.sendMessageView);
@@ -188,6 +182,19 @@ public class MessagingActivity extends AppCompatActivity {
         preferenceEditor.putBoolean("active", true);
         preferenceEditor.commit();
 
+        if(mConversation != null) {
+            final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getId());
+            int height = allMessages.size();
+            final List<DistortMessage> messages = allMessages.subList(Math.max(height - 20, 0), height);
+            for (int i = 0; i < messages.size(); i++) {
+                mMessagesAdapter.addOrUpdateMessage(messages.get(i));
+            }
+            int position = mMessagesAdapter.getItemCount() - 1;
+            if(position > 0) {
+                mMessagesView.smoothScrollToPosition(position);
+            }
+        }
+
         super.onResume();
     }
     @Override
@@ -206,7 +213,10 @@ public class MessagingActivity extends AppCompatActivity {
             String conversationDatabaseId = intent.getStringExtra("conversationDatabaseId");
             if(conversationDatabaseId != null && !conversationDatabaseId.isEmpty()) {
                 mConversation = getConversationFromLocal(conversationDatabaseId);
-                final ArrayList<DistortMessage> messages = getMessagesFromLocal(conversationDatabaseId);
+
+                final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getId());
+                int height = allMessages.size();
+                final List<DistortMessage> messages = allMessages.subList(Math.max(height - 20, 0), height);
 
                 // Can only update UI from UI thread
                 mActivity.runOnUiThread(new Runnable() {
@@ -226,21 +236,22 @@ public class MessagingActivity extends AppCompatActivity {
     }
 
     /**
-     * Represents an asynchronous login/registration task used to retrieve all the user's groups
+     * Represents an asynchronous messaging task used to send a single message
      */
     public class SendMessageTask extends AsyncTask<Void, Void, Boolean> {
 
         private Activity mActivity;
-        private int mErrorCode;
+        private String mNewMessageConversationId;
+        private String mErrorMessage;
 
         SendMessageTask(Activity activity) {
             mActivity = activity;
-            mErrorCode = 0;
+            mErrorMessage = "";
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            mErrorCode = 0;
+            mErrorMessage = "";
 
             // Attempt authentication against a network service.
             try {
@@ -270,6 +281,7 @@ public class MessagingActivity extends AppCompatActivity {
 
                 // Read all messages in messages and out messages
                 final OutMessage newMessage = OutMessage.readMessageJson(response);
+                mNewMessageConversationId = newMessage.getConversationId();
                 response.close();
 
                 mActivity.runOnUiThread(new Runnable() {
@@ -284,13 +296,13 @@ public class MessagingActivity extends AppCompatActivity {
 
                 return true;
             } catch (DistortJson.DistortException e) {
-                mErrorCode = -1;
+                mErrorMessage = e.getMessage();
                 e.printStackTrace();
                 Log.e("SEND-MESSAGE", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
 
                 return false;
             } catch (IOException e) {
-                mErrorCode = -2;
+                mErrorMessage = e.getMessage();
                 e.printStackTrace();
 
                 return false;
@@ -300,11 +312,16 @@ public class MessagingActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(final Boolean success) {
             mSendMessageTask = null;
-            Log.d("SEND-MESSAGE", String.valueOf(mErrorCode));
+            Log.d("SEND-MESSAGE", mErrorMessage);
 
             // TODO: Handle errors here
-            if (!success) {
-
+            if (success) {
+                // We just invalidated conversations cache, update
+                DistortBackgroundService.startActionFetchConversations(getApplicationContext(), mGroup.getId());
+                DistortBackgroundService.startActionFetchMessages(getApplicationContext(), mNewMessageConversationId);
+            } else {
+                mMessageEdit.setError(mErrorMessage);
+                mMessageEdit.setError(mErrorMessage);
             }
         }
     }

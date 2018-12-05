@@ -3,9 +3,13 @@ package com.unix4all.rypi.distort;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.SystemClock;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 
 import android.os.AsyncTask;
@@ -33,6 +37,7 @@ import org.spongycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.spongycastle.crypto.params.KeyParameter;
 import org.spongycastle.util.encoders.Base64;
 
+import java.util.Calendar;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,8 +70,11 @@ public class LoginActivity extends AppCompatActivity {
     private EditText mHomeserverView;
     private EditText mAccountNameView;
     private EditText mPasswordView;
+    private Button mSignInButton;
+    private Button mSignInWithStoredButton;
     private View mProgressView;
     private View mLoginFormView;
+    private @Nullable String mToken;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +96,7 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
-        Button mSignInButton = (Button) findViewById(R.id.sign_in_button);
+        mSignInButton = (Button) findViewById(R.id.sign_in_button);
         mSignInButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -101,11 +109,25 @@ public class LoginActivity extends AppCompatActivity {
 
         SharedPreferences sharedPref = this.getSharedPreferences(
                 getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
-        String token = sharedPref.getString(EXTRA_CREDENTIAL, null);
-        if(token != null) {
+        mToken = sharedPref.getString(EXTRA_CREDENTIAL, null);
+        mSignInWithStoredButton = (Button) findViewById(R.id.signInWithStoredButton);
+
+        if(mToken != null) {
             showProgress(true);
-            mAuthTask = new UserLoginTask(this, token);
+            mSignInWithStoredButton.setVisibility(View.VISIBLE);
+            final Context context = this;
+            mSignInWithStoredButton.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    mAuthTask = new UserLoginTask(context, mToken);
+                    mAuthTask.execute((Void) null);
+                }
+            });
+
+            mAuthTask = new UserLoginTask(this, mToken);
             mAuthTask.execute((Void) null);
+        } else {
+            mSignInWithStoredButton.setVisibility(View.INVISIBLE);
         }
     }
 
@@ -165,6 +187,18 @@ public class LoginActivity extends AppCompatActivity {
 
     private boolean isAddressValid(String address) {
         return IS_ADDRESS_PATTERN.matcher(address).matches();
+    }
+
+    @Override
+    protected void onResume() {
+        SharedPreferences sharedPref = this.getSharedPreferences(
+                getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+        String token = sharedPref.getString(EXTRA_CREDENTIAL, null);
+        if(token != null) {
+            mSignInWithStoredButton.setVisibility(View.VISIBLE);
+        }
+
+        super.onResume();
     }
 
     /**
@@ -383,10 +417,35 @@ public class LoginActivity extends AppCompatActivity {
                 preferenceEditor.putString(EXTRA_CREDENTIAL, mToken);
                 preferenceEditor.commit();
 
-                // Start background thread to manage a local database in sync with remote
-                DistortBackgroundService.startActionScheduleServices(getApplicationContext());
+                // Create background tasks
+                Context appContext = getApplicationContext();
+                PendingIntent pendingIntent;
+                Long timeInterval;
+                AlarmManager alarmMgr = (AlarmManager)mContext.getSystemService(Context.ALARM_SERVICE);
+                Intent intent = new Intent(appContext, DistortBackgroundService.class);
 
-                Intent intent = new Intent(mContext, GroupsActivity.class);
+                // Create peers task
+                timeInterval = AlarmManager.INTERVAL_HALF_HOUR;
+                intent.setAction(DistortBackgroundService.ACTION_FETCH_PEERS);
+                pendingIntent = PendingIntent.getService(appContext, 0, intent, 0);
+                alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
+                DistortBackgroundService.startActionFetchPeers(appContext);
+
+                // Create groups task
+                timeInterval = AlarmManager.INTERVAL_HALF_HOUR;
+                intent.setAction(DistortBackgroundService.ACTION_FETCH_GROUPS);
+                pendingIntent = PendingIntent.getService(appContext, 0, intent, 0);
+                alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
+                DistortBackgroundService.startActionFetchGroups(appContext);
+
+                // Create messages task, higher frequency
+                timeInterval = 180000L;
+                intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_SERVICES);
+                pendingIntent = PendingIntent.getService(appContext, 0, intent, 0);
+                alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
+                DistortBackgroundService.startActionScheduleServices(appContext);
+
+                intent = new Intent(mContext, GroupsActivity.class);
                 startActivity(intent);
             } else {
                 if(mErrorCode == -1) {

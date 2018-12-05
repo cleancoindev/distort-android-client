@@ -23,6 +23,7 @@ import android.view.View;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +39,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
     private GroupAdapter mGroupsAdapter;
 
     private FetchAccountTask mAccountTask;
+    private AddGroupTask mAddGroupTask;
 
     private GroupServiceBroadcastReceiver mServiceReceiver;
 
@@ -77,10 +79,6 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         mGroupsAdapter = new GroupAdapter(GroupsActivity.this, groups);
         mGroupsView.setAdapter(mGroupsAdapter);
 
-        // Fetch account parameters
-        mAccountTask = new FetchAccountTask(this);
-        mAccountTask.execute();
-
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -97,8 +95,9 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
     }
 
     @Override
-    public void onFinishGroupFieldInputs(String groupName, Integer subgroupIndex) {
-        // TODO: Attempt to add group to homeserver (PUT /groups)
+    public void onFinishGroupFieldInputs(String groupName, Integer subgroupLevel) {
+        mAddGroupTask = new AddGroupTask(this, groupName, subgroupLevel);
+        mAddGroupTask.execute();
     }
 
     // Getting local values
@@ -122,6 +121,18 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mServiceReceiver);
         super.onStop();
     }
+
+    @Override
+    protected void onResume() {
+        // Fetch account parameters
+        if(mAccountTask == null) {
+            mAccountTask = new FetchAccountTask(this);
+            mAccountTask.execute();
+        }
+
+        super.onResume();
+    }
+
     public class GroupServiceBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -169,9 +180,6 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                     myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
                     response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
                 }
-                if(response == null) {
-                    return false;
-                }
 
                 String accountName = null;
                 DistortGroup activeGroup = null;
@@ -182,8 +190,6 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                 response.beginObject();
                 while(response.hasNext()) {
                     String key = response.nextName();
-                    Log.d("GET-ACCOUNT-KEY", key);
-
                     if(key.equals("accountName")) {
                         accountName = response.nextString();
                     } else if(key.equals("activeGroup")) {
@@ -240,6 +246,89 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
             if (success) {
 
+            } else {
+
+            }
+        }
+    }
+
+
+    /**
+     * Represents an asynchronous task used to add a group to account
+     */
+    public class AddGroupTask extends AsyncTask<Void, Void, Boolean> {
+
+        private Activity mActivity;
+        private String mGroupName;
+        private Integer mSubgroupLevel;
+        private int mErrorCode;
+
+        AddGroupTask(Activity activity, String groupName, Integer subgroupLevel) {
+            mActivity = activity;
+            mGroupName = groupName;
+            mSubgroupLevel = subgroupLevel;
+            mErrorCode = 0;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            mErrorCode = 0;
+
+            // Attempt authentication against a network service.
+            try {
+                JsonReader response = null;
+                String url = mLoginParams.getHomeserverAddress() + "groups";
+
+                HashMap<String, String> bodyParams = new HashMap<>();
+                bodyParams.put("name", mGroupName);
+                bodyParams.put("subgroupLevel", String.valueOf(mSubgroupLevel));
+
+                URL homeserverEndpoint = new URL(url);
+                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
+                    HttpsURLConnection myConnection;
+                    myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.PostBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                } else {
+                    HttpURLConnection myConnection;
+                    myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.PostBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                }
+
+                // Read all messages in messages and out messages
+                final DistortGroup newGroup = DistortGroup.readGroupJson(response);
+                response.close();
+
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mGroupsAdapter.addOrUpdateGroup(newGroup);
+                    }
+                });
+
+                return true;
+            } catch (DistortJson.DistortException e) {
+                mErrorCode = -1;
+                e.printStackTrace();
+                Log.e("ADD-GROUP", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+
+                return false;
+            } catch (IOException e) {
+                mErrorCode = -2;
+                e.printStackTrace();
+
+                return false;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final Boolean success) {
+            mAddGroupTask = null;
+            Log.d("ADD-GROUP", String.valueOf(mErrorCode));
+
+            // TODO: Handle errors here
+            if (success) {
+                // Invalidated local groups cache, refetch
+                DistortBackgroundService.startActionFetchGroups(getApplicationContext());
             } else {
 
             }

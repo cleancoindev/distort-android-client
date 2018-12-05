@@ -39,4 +39,6 @@
     <string name="notification_messages_title">DistoRt</string>
     <string name="notification_messages_text">Received new message(s) ...</string>
     <string name="messaging_preference_key">com.unix4all.rypi.distort.MESSAGING_PREFERENCES</string>
+    <string name="new_peer_add_button">Add Peer</string>
+    <string name="action_sign_in_with_stored" >Sign In With Last Account</string>
 </resources>

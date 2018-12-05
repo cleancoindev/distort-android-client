@@ -11,28 +11,49 @@
     <!-- TODO: Update blank fragment layout -->
 
     <EditText
-        android:id="@+id/friendlyName"
+        android:id="@+id/newPeerFriendlyName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ems="10"
         android:hint="@string/prompt_freindly_name"
+        android:imeOptions="actionNext"
         android:importantForAutofill="no"
-        android:inputType="text" />
+        android:inputType="text"
+        android:nextFocusForward="@id/newPeerId" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal">
 
-        <EditText
-            android:id="@+id/peerId"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="238dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ems="10"
-            android:hint="@string/prompt_peer_id"
-            android:importantForAutofill="no"
-            android:inputType="text" />
+            android:orientation="vertical">
+
+            <EditText
+                android:id="@+id/newPeerId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ems="10"
+                android:hint="@string/prompt_peer_id"
+                android:imeOptions="actionNext"
+                android:importantForAutofill="no"
+                android:inputType="text"
+                android:nextFocusForward="@id/newPeerAccountName" />
+
+            <EditText
+                android:id="@+id/newPeerAccountName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ems="10"
+                android:hint="@string/prompt_opt_account_name"
+                android:imeOptions="actionNext"
+                android:inputType="textPersonName" />
+        </LinearLayout>
 
         <Button
             android:id="@+id/scanQRCodeButton"
@@ -40,6 +61,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:enabled="false"
+            android:gravity="center"
             android:text="@string/action_scan_qr" />
     </LinearLayout>
 
@@ -48,5 +70,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/text_create_new_conversation" />
+
+    <Button
+        android:id="@+id/newPeerAddButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/new_peer_add_button" />
 
 </LinearLayout>

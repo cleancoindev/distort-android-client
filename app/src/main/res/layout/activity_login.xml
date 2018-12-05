@@ -104,6 +104,13 @@
                 android:text="@string/action_sign_in_short"
                 android:textStyle="bold" />
 
+            <Button
+                android:id="@+id/signInWithStoredButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/action_sign_in_with_stored"
+                android:visibility="visible" />
+
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

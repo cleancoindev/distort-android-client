@@ -1,10 +1,12 @@
 package com.unix4all.rypi.distort;
 
+import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
@@ -15,13 +17,19 @@ import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class PeerConversationActivity extends AppCompatActivity implements NewConversationFragment.NewConversationListener {
     private final PeerConversationActivity mActivity = this;
@@ -34,6 +42,8 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
 
     private PeerServiceBroadcastReceiver mPeerServiceReceiver;
     private ConversationServiceBroadcastReceiver mConversationServiceReceiver;
+
+    private AddPeerTask mAddPeerTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,6 +101,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
             DistortPeer p = peer.getValue();
             if(p.getGroups().get(mGroup.getName()) != null) {
                 DistortConversation c = new DistortConversation(null, mGroup.getId(), p.getPeerId(), p.getAccountName(), 0, new Date(0));
+                c.setFriendlyName(p.getNickname());
                 mConversationAdapter.addOrUpdateConversation(c);
             }
         }
@@ -122,8 +133,9 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
     }
 
     @Override
-    public void onFinishConvoFieldInputs(String friendlyName, String peerId) {
-        // TODO: Attempt to add group to homeserver (PUT /groups)
+    public void onFinishConvoFieldInputs(String friendlyName, String peerId, String accountName) {
+        mAddPeerTask = new AddPeerTask(this, friendlyName, peerId, accountName);
+        mAddPeerTask.execute();
     }
 
     // Handle successful retrieval of peers
@@ -170,6 +182,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
                         // Ensure peer belongs to group before allowing to message in group
                         if(p.getGroups().get(mGroup.getName()) != null) {
                             DistortConversation c = new DistortConversation(null, mGroup.getId(), p.getPeerId(), p.getAccountName(), 0, new Date(0));
+                            c.setFriendlyName(p.getNickname());
                             mConversationAdapter.addOrUpdateConversation(c);
                         }
                     }
@@ -202,6 +215,95 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
                     }
                 }
             });
+        }
+    }
+
+
+    /**
+     * Represents an asynchronous task used to add a peer to account
+     */
+    public class AddPeerTask extends AsyncTask<Void, Void, Boolean> {
+
+        private Activity mActivity;
+        private String mFriendlyName;
+        private String mPeerId;
+        private String mAccountName;
+        private int mErrorCode;
+
+        AddPeerTask(Activity activity, String friendlyName, String peerId, String accountName) {
+            mActivity = activity;
+            mFriendlyName = friendlyName;
+            mPeerId = peerId;
+            mAccountName = accountName;
+            mErrorCode = 0;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            mErrorCode = 0;
+
+            // Attempt authentication against a network service.
+            try {
+                JsonReader response = null;
+                String url = mLoginParams.getHomeserverAddress() + "peers";
+
+                HashMap<String, String> bodyParams = new HashMap<>();
+                bodyParams.put("nickname", mFriendlyName);
+                bodyParams.put("peerId", mPeerId);
+                bodyParams.put("accountName", mAccountName);
+
+                URL homeserverEndpoint = new URL(url);
+                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
+                    HttpsURLConnection myConnection;
+                    myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.PostBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                } else {
+                    HttpURLConnection myConnection;
+                    myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.PostBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                }
+
+                // Read all messages in messages and out messages
+                final DistortPeer newPeer = DistortPeer.readPeerJson(response);
+                response.close();
+
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(newPeer.getGroups().get(mGroup.getName()) != null) {
+                            DistortConversation c = new DistortConversation(null, mGroup.getId(), mPeerId, mAccountName, 0, new Date(0));
+                            mConversationAdapter.addOrUpdateConversation(c);
+                        }
+                    }
+                });
+
+                return true;
+            } catch (DistortJson.DistortException e) {
+                mErrorCode = -1;
+                e.printStackTrace();
+                Log.e("ADD-PEER", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+
+                return false;
+            } catch (IOException e) {
+                mErrorCode = -2;
+                e.printStackTrace();
+
+                return false;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final Boolean success) {
+            mAddPeerTask = null;
+            Log.d("ADD-PEER", String.valueOf(mErrorCode));
+
+            // TODO: Handle errors here
+            if (success) {
+                // Invalidated local peers cache, refetch
+                DistortBackgroundService.startActionFetchGroups(getApplicationContext());
+            } else {
+
+            }
         }
     }
 }

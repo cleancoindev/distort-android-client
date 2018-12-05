@@ -12,6 +12,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -22,20 +23,22 @@ import android.widget.TextView;
  * create an instance of this fragment.
  * create an instance of this fragment.
  */
-public class NewConversationFragment extends DialogFragment implements TextView.OnEditorActionListener {
+public class NewConversationFragment extends DialogFragment {
 
     /**
      * Text field inputs
      */
     private EditText mFriendlyName;
     private EditText mPeerId;
+    private EditText mAccountName;
+    private Button mAddPeer;
 
 
     /**
      * Allow passing data back to activities
      */
     public interface NewConversationListener {
-        void onFinishConvoFieldInputs(String friendlyName, String peerId);
+        void onFinishConvoFieldInputs(String friendlyName, String peerId, String accountName);
     }
 
     public NewConversationFragment() {
@@ -65,8 +68,10 @@ public class NewConversationFragment extends DialogFragment implements TextView.
         super.onViewCreated(view, savedInstanceState);
 
         // Find EditText views
-        mFriendlyName = (EditText) view.findViewById(R.id.friendlyName);
-        mPeerId = (EditText) view.findViewById(R.id.peerId);
+        mFriendlyName = (EditText) view.findViewById(R.id.newPeerFriendlyName);
+        mPeerId = (EditText) view.findViewById(R.id.newPeerId);
+        mAccountName = (EditText) view.findViewById(R.id.newPeerAccountName);
+        mAddPeer = (Button) view.findViewById(R.id.newPeerAddButton);
 
         // Set dialog title
         getDialog().setTitle(R.string.title_create_new_conversation);
@@ -76,24 +81,22 @@ public class NewConversationFragment extends DialogFragment implements TextView.
         getDialog().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
 
         // Allow input field to close dialog
-        mPeerId.setOnEditorActionListener(this);
+        mAddPeer.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                finishDialog();
+            }
+        });
     }
 
     private boolean isValidPeerId(String peerId) {
         return IpfsHash.isIpfsHash(peerId);
     }
 
-    @Override
-    public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-        if(EditorInfo.IME_ACTION_DONE == actionId) {
-            return finishDialog();
-        }
-        return false;
-    }
-
     private boolean finishDialog() {
         String friendlyName = mFriendlyName.getText().toString();
         String peerId = mPeerId.getText().toString();
+        String accountName = mAccountName.getText().toString();
 
         // TODO: Proper error handling messages
         if(friendlyName.isEmpty()) {
@@ -106,15 +109,18 @@ public class NewConversationFragment extends DialogFragment implements TextView.
             mPeerId.requestFocus();
             return false;
         }
-        if(isValidPeerId(peerId)) {
+        if(!isValidPeerId(peerId)) {
             mPeerId.setError(getResources().getString(R.string.error_invalid_hash));
             mPeerId.requestFocus();
             return false;
         }
+        if(accountName == null || accountName.isEmpty()) {
+            accountName = "root";
+        }
 
         // Return entered input
         NewConversationListener listener = (NewConversationListener) getActivity();
-        listener.onFinishConvoFieldInputs(friendlyName, peerId);
+        listener.onFinishConvoFieldInputs(friendlyName, peerId, accountName);
 
         // Close dialog
         dismiss();

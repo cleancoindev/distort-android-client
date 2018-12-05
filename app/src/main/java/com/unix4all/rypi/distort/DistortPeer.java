@@ -3,6 +3,7 @@ package com.unix4all.rypi.distort;
 import android.support.annotation.Nullable;
 import android.util.JsonReader;
 import android.util.JsonWriter;
+import android.util.Log;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,7 +61,7 @@ public class DistortPeer {
     public String getId() {
         return mId;
     }
-    public String getNickname() {
+    public @Nullable String getNickname() {
         return mNickname;
     }
     public String getFriendlyName() {
@@ -145,6 +146,8 @@ public class DistortPeer {
         json.endObject();
 
         if(id != null && peerId != null) {
+            String nicknameStr = (nickname != null) ? nickname : "";
+            Log.d("READ_PEER", "Peer ( " + id + "," + nicknameStr + "," + peerId + "," + accountName + " )");
             return new DistortPeer(id, nickname, peerId, accountName, groupIndexCouples);
         } else {
             throw new IOException();
@@ -162,7 +165,7 @@ public class DistortPeer {
         json.name("cert").beginObject();
             json.name("groups").beginArray();
             for(Map.Entry<String, Integer> group : mGroups.entrySet()) {
-                json.value(group.getKey() + ':' + group.getValue());
+                json.value(group.getKey() + ':' + String.valueOf(group.getValue()));
             }
             json.endArray();    // Groups array
         json.endObject();       // Cert object

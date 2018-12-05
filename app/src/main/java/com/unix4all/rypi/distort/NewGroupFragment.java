@@ -36,7 +36,7 @@ public class NewGroupFragment extends DialogFragment {
      * Allow passing data back to activities
      */
     public interface NewGroupListener {
-        void onFinishGroupFieldInputs(String groupName, Integer subgroupIndex);
+        void onFinishGroupFieldInputs(String groupName, Integer subgroupLevel);
     }
 
     public NewGroupFragment() {
@@ -73,9 +73,8 @@ public class NewGroupFragment extends DialogFragment {
         // Set dialog title
         getDialog().setTitle(R.string.title_create_new_conversation);
 
-        // Open keyboard at first input
+        // Focus keyboard at start
         mGroupName.requestFocus();
-        getDialog().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
 
         // Allow input field to close dialog
         mJoinGroup.setOnClickListener(new View.OnClickListener() {
@@ -88,7 +87,7 @@ public class NewGroupFragment extends DialogFragment {
 
     private boolean finishDialog() {
         String groupName = mGroupName.getText().toString();
-        Integer subgroupIndex = mGroupLevel.getSelectedItemPosition();
+        Integer subgroupLevel = mGroupLevel.getSelectedItemPosition();
 
         // TODO: Proper error handling messages
         if(groupName.isEmpty()) {
@@ -99,7 +98,7 @@ public class NewGroupFragment extends DialogFragment {
 
         // Return entered input
         NewGroupListener listener = (NewGroupListener) getActivity();
-        listener.onFinishGroupFieldInputs(groupName, subgroupIndex);
+        listener.onFinishGroupFieldInputs(groupName, subgroupLevel);
 
         // Close dialog
         dismiss();
