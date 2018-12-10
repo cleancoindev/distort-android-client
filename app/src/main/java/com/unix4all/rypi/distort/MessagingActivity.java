@@ -20,27 +20,15 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import com.google.gson.Gson;
-
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
-
-import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_ACCOUNT_NAME;
-import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_CREDENTIAL;
-import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_HOMESERVER;
-import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL;
-import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_PEER_ID;
 
 public class MessagingActivity extends AppCompatActivity {
     private final MessagingActivity mActivity = this;
@@ -78,7 +66,7 @@ public class MessagingActivity extends AppCompatActivity {
 
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
         mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
@@ -135,7 +123,7 @@ public class MessagingActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // Only send non-empty messages
-                if(!mMessageEdit.getText().toString().isEmpty()) {
+                if(!mMessageEdit.getText().toString().isEmpty() && mSendMessageTask == null) {
                     mSendMessageTask = new SendMessageTask(thisActivity);
                     mSendMessageTask.execute();
                 }
@@ -280,7 +268,7 @@ public class MessagingActivity extends AppCompatActivity {
                 }
 
                 // Read all messages in messages and out messages
-                final OutMessage newMessage = OutMessage.readMessageJson(response);
+                final OutMessage newMessage = OutMessage.readJson(response);
                 mNewMessageConversationId = newMessage.getConversationId();
                 response.close();
 

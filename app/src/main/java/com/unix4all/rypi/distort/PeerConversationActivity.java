@@ -8,7 +8,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.content.LocalBroadcastManager;
@@ -52,7 +51,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
 
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
         mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
@@ -264,7 +263,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
                 }
 
                 // Read all messages in messages and out messages
-                final DistortPeer newPeer = DistortPeer.readPeerJson(response);
+                final DistortPeer newPeer = DistortPeer.readJson(response);
                 response.close();
 
                 mActivity.runOnUiThread(new Runnable() {

@@ -37,7 +37,6 @@ import org.spongycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.spongycastle.crypto.params.KeyParameter;
 import org.spongycastle.util.encoders.Base64;
 
-import java.util.Calendar;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -108,22 +107,22 @@ public class LoginActivity extends AppCompatActivity {
         mProgressView = findViewById(R.id.login_progress);
 
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
         mToken = sharedPref.getString(EXTRA_CREDENTIAL, null);
         mSignInWithStoredButton = (Button) findViewById(R.id.signInWithStoredButton);
+
+        final Context context = this;
+        mSignInWithStoredButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mAuthTask = new UserLoginTask(context, mToken);
+                mAuthTask.execute((Void) null);
+            }
+        });
 
         if(mToken != null) {
             showProgress(true);
             mSignInWithStoredButton.setVisibility(View.VISIBLE);
-            final Context context = this;
-            mSignInWithStoredButton.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    mAuthTask = new UserLoginTask(context, mToken);
-                    mAuthTask.execute((Void) null);
-                }
-            });
-
             mAuthTask = new UserLoginTask(this, mToken);
             mAuthTask.execute((Void) null);
         } else {
@@ -192,9 +191,9 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
-        String token = sharedPref.getString(EXTRA_CREDENTIAL, null);
-        if(token != null) {
+                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+        mToken = sharedPref.getString(EXTRA_CREDENTIAL, null);
+        if(mToken != null) {
             mSignInWithStoredButton.setVisibility(View.VISIBLE);
         }
 
@@ -347,7 +346,7 @@ public class LoginActivity extends AppCompatActivity {
                     }
                 } else {
                     SharedPreferences sharedPref = mContext.getSharedPreferences(
-                            getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                            getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
                     mAddress = sharedPref.getString(EXTRA_HOMESERVER, null);
                     mProtocol = sharedPref.getString(EXTRA_HOMESERVER_PROTOCOL, null);
                     mPeerId = sharedPref.getString(EXTRA_PEER_ID, null);
@@ -408,7 +407,7 @@ public class LoginActivity extends AppCompatActivity {
             if (success) {
                 // Save login  credentials for later ease
                 SharedPreferences sharedPref = mContext.getSharedPreferences(
-                        getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                        getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
                 SharedPreferences.Editor preferenceEditor = sharedPref.edit();
                 preferenceEditor.putString(EXTRA_HOMESERVER, mAddress);
                 preferenceEditor.putString(EXTRA_HOMESERVER_PROTOCOL, mProtocol);
@@ -417,33 +416,26 @@ public class LoginActivity extends AppCompatActivity {
                 preferenceEditor.putString(EXTRA_CREDENTIAL, mToken);
                 preferenceEditor.commit();
 
-                // Create background tasks
+                // Create background tasks (and add to alarm if not already running)
                 Context appContext = getApplicationContext();
+                Intent intent = new Intent(appContext, DistortBackgroundService.class);
                 PendingIntent pendingIntent;
                 Long timeInterval;
-                AlarmManager alarmMgr = (AlarmManager)mContext.getSystemService(Context.ALARM_SERVICE);
-                Intent intent = new Intent(appContext, DistortBackgroundService.class);
+                AlarmManager alarmMgr = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
 
-                // Create peers task
+                // Create account,groups,peers task
                 timeInterval = AlarmManager.INTERVAL_HALF_HOUR;
-                intent.setAction(DistortBackgroundService.ACTION_FETCH_PEERS);
-                pendingIntent = PendingIntent.getService(appContext, 0, intent, 0);
-                alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
-                DistortBackgroundService.startActionFetchPeers(appContext);
+                intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_SECONDARY_SERVICES);
+                pendingIntent = PendingIntent.getService(appContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+                alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
+                DistortBackgroundService.startActionScheduleSecondaryServices(appContext);
 
-                // Create groups task
-                timeInterval = AlarmManager.INTERVAL_HALF_HOUR;
-                intent.setAction(DistortBackgroundService.ACTION_FETCH_GROUPS);
-                pendingIntent = PendingIntent.getService(appContext, 0, intent, 0);
-                alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
-                DistortBackgroundService.startActionFetchGroups(appContext);
-
-                // Create messages task, higher frequency
+                // Create conversations,messages task, higher frequency
                 timeInterval = 180000L;
-                intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_SERVICES);
-                pendingIntent = PendingIntent.getService(appContext, 0, intent, 0);
+                intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_PRIMARY_SERVICES);
+                pendingIntent = PendingIntent.getService(appContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
                 alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
-                DistortBackgroundService.startActionScheduleServices(appContext);
+                DistortBackgroundService.startActionSchedulePrimaryServices(appContext);
 
                 intent = new Intent(mContext, GroupsActivity.class);
                 startActivity(intent);

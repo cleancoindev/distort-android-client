@@ -37,6 +37,7 @@
         android:layout_marginLeft="10dp"
         android:layout_marginTop="8dp"
         android:text="TextView"
+        android:textColor="@android:color/background_light"
         android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintStart_toEndOf="@+id/messagesIcon"
@@ -49,6 +50,7 @@
         android:layout_marginStart="8dp"
         android:layout_marginLeft="10dp"
         android:text="TextView"
+        android:textColor="@android:color/background_light"
         android:textSize="10sp"
         app:layout_constraintBottom_toBottomOf="@+id/messagesIcon"
         app:layout_constraintStart_toEndOf="@+id/messagesIcon" />

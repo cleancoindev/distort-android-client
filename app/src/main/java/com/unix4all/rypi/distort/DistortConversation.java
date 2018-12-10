@@ -111,7 +111,7 @@ public class DistortConversation {
     }
 
     // Static parsing function
-    static DistortConversation readConversationJson(JsonReader json, @Nullable String groupDatabaseId) throws IOException {
+    static DistortConversation readJson(JsonReader json, @Nullable String groupDatabaseId) throws IOException {
         String id = null;
         String groupId = groupDatabaseId;
         String peerId = null;
@@ -154,7 +154,7 @@ public class DistortConversation {
     }
 
     // Write this object to JSON
-    public void writeConversationJson(JsonWriter json) throws IOException {
+    public void writeJson(JsonWriter json) throws IOException {
         // Read all fields from group
         json.beginObject();
         if(mId != null) {

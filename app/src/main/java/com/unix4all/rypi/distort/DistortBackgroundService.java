@@ -29,7 +29,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -41,13 +40,15 @@ import javax.net.ssl.HttpsURLConnection;
  */
 public class DistortBackgroundService extends IntentService {
     // Actions Background Service can perform
+    public static final String ACTION_FETCH_ACCOUNT = "com.unix4all.rypi.distort.action.FETCH_ACCOUNT";
     public static final String ACTION_FETCH_PEERS = "com.unix4all.rypi.distort.action.FETCH_PEERS";
     public static final String ACTION_FETCH_MESSAGES = "com.unix4all.rypi.distort.action.FETCH_MESSAGES";
     public static final String ACTION_FETCH_GROUPS = "com.unix4all.rypi.distort.action.FETCH_GROUPS";
     public static final String ACTION_FETCH_CONVERSATIONS = "com.unix4all.rypi.distort.action.FETCH_CONVERSATIONS";
 
     // Persistent service and scheduling
-    public static final String ACTION_SCHEDULE_SERVICES = "com.unix4all.rypi.distort.action.SCHEDULE_SERVICES";
+    public static final String ACTION_SCHEDULE_PRIMARY_SERVICES = "com.unix4all.rypi.distort.action.SCHEDULE_PRIMARY_SERVICES";
+    public static final String ACTION_SCHEDULE_SECONDARY_SERVICES = "com.unix4all.rypi.distort.action.SCHEDULE_SECONDARY_SERVICES";
 
     // Saved local files
     private static final String PEERS_FILE_NAME = "peers.json";
@@ -65,7 +66,7 @@ public class DistortBackgroundService extends IntentService {
     private void getAuthenticationParams() {
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
-                this.getResources().getString(R.string.credentials_preferences_key), Context.MODE_PRIVATE);
+                this.getResources().getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
         mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
@@ -75,6 +76,23 @@ public class DistortBackgroundService extends IntentService {
     }
 
     // Getting locally stored values
+    // Load account from shared preferences
+    public static @Nullable DistortAccount getLocalAccount(Context context) {
+        SharedPreferences sharedPref = context.getSharedPreferences(
+                context.getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+        String id = sharedPref.getString("id", null);
+        String peerId = sharedPref.getString("peerId", null);
+        String accountName = sharedPref.getString("accountName", null);
+        Boolean enabled = sharedPref.getBoolean("enabled", false);
+        String activeGroupId = sharedPref.getString("activeGroupId", null);
+
+        if(id != null && peerId != null && accountName != null) {
+            return new DistortAccount(id, peerId, accountName, enabled, activeGroupId);
+        } else {
+            return null;
+        }
+    }
+    // Ha
     // Hashmap is keyed by peer full-address
     public static HashMap<String, DistortPeer> getLocalPeers(Context context) {
         HashMap<String, DistortPeer> peerSet = new HashMap<>();
@@ -89,7 +107,7 @@ public class DistortBackgroundService extends IntentService {
             // Create JSON file and save
             json.beginArray();
             while (json.hasNext()) {
-                DistortPeer peer = DistortPeer.readPeerJson(json);
+                DistortPeer peer = DistortPeer.readJson(json);
                 peerSet.put(peer.getFullAddress(), peer);
             }
             json.endArray();
@@ -114,7 +132,7 @@ public class DistortBackgroundService extends IntentService {
             // Create JSON file and save
             json.beginArray();
             while(json.hasNext()) {
-                DistortGroup group = DistortGroup.readGroupJson(json);
+                DistortGroup group = DistortGroup.readJson(json);
                 groupSet.put(group.getId(), group);
             }
             json.endArray();
@@ -135,7 +153,7 @@ public class DistortBackgroundService extends IntentService {
             // Create JSON file and save
             json.beginArray();
             while(json.hasNext()) {
-                DistortConversation c = DistortConversation.readConversationJson(json, null);
+                DistortConversation c = DistortConversation.readJson(json, null);
                 conversationSet.put(c.getId(), c);
             }
             json.endArray();
@@ -166,9 +184,9 @@ public class DistortBackgroundService extends IntentService {
                 json.beginObject();
                 DistortMessage m;
                 if(json.nextName().equals(DistortMessage.TYPE_IN)) {
-                    m = InMessage.readMessageJson(json);
+                    m = InMessage.readJson(json);
                 } else {
-                    m = OutMessage.readMessageJson(json);
+                    m = OutMessage.readJson(json);
                 }
                 messages.add(m);
                 json.endObject();
@@ -185,6 +203,17 @@ public class DistortBackgroundService extends IntentService {
     }
 
     // Saving values to local storage
+    // Save account to shared preferences
+    private void saveAccountToLocal(DistortAccount account) {
+        SharedPreferences sharedPref = getSharedPreferences(getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putString("id", account.getId());
+        editor.putString("peerId", account.getPeerId());
+        editor.putString("accountName", account.getAccountName());
+        editor.putBoolean("enabled", account.getEnabled());
+        editor.putString("activeGroupId", account.getActiveGroupId());
+        editor.apply();
+    }
     // Hashmap keyed by peer full-address
     private void savePeersToLocal(HashMap<String, DistortPeer> peers) {
         try {
@@ -194,7 +223,7 @@ public class DistortBackgroundService extends IntentService {
             // Read from JSON file
             json.beginArray();
             for(Map.Entry<String, DistortPeer> peer : peers.entrySet()) {
-                peer.getValue().writePeerJson(json);
+                peer.getValue().writeJson(json);
             }
             json.endArray();
             json.close();
@@ -211,7 +240,7 @@ public class DistortBackgroundService extends IntentService {
             // Read from JSON file
             json.beginArray();
             for(Map.Entry<String, DistortGroup> group : groups.entrySet()) {
-                group.getValue().writeGroupJson(json);
+                group.getValue().writeJson(json);
             }
             json.endArray();
             json.close();
@@ -228,7 +257,7 @@ public class DistortBackgroundService extends IntentService {
             // Read from JSON file
             json.beginArray();
             for(Map.Entry<String, DistortConversation> conversation : conversations.entrySet()) {
-                conversation.getValue().writeConversationJson(json);
+                conversation.getValue().writeJson(json);
             }
             json.endArray();
             json.close();
@@ -247,11 +276,11 @@ public class DistortBackgroundService extends IntentService {
                 DistortMessage m = messages.get(i);
                 if(m.getType().equals(DistortMessage.TYPE_IN)) {
                     json.beginObject().name(DistortMessage.TYPE_IN);
-                    ((InMessage)m).writeMessageJson(json);
+                    ((InMessage)m).writeJson(json);
                     json.endObject();
                 } else {
                     json.beginObject().name(DistortMessage.TYPE_OUT);
-                    ((OutMessage)m).writeMessageJson(json);
+                    ((OutMessage)m).writeJson(json);
                     json.endObject();
                 }
             }
@@ -263,6 +292,11 @@ public class DistortBackgroundService extends IntentService {
     }
 
     // Helpers for starting services
+    public static void startActionFetchAccount(Context context) {
+        Intent intent = new Intent(context, DistortBackgroundService.class);
+        intent.setAction(ACTION_FETCH_ACCOUNT);
+        context.startService(intent);
+    }
     public static void startActionFetchPeers(Context context) {
         Intent intent = new Intent(context, DistortBackgroundService.class);
         intent.setAction(ACTION_FETCH_PEERS);
@@ -288,9 +322,15 @@ public class DistortBackgroundService extends IntentService {
 
         context.startService(intent);
     }
-    public static void startActionScheduleServices(Context context) {
+    public static void startActionSchedulePrimaryServices(Context context) {
         Intent intent = new Intent(context, DistortBackgroundService.class);
-        intent.setAction(ACTION_SCHEDULE_SERVICES);
+        intent.setAction(ACTION_SCHEDULE_PRIMARY_SERVICES);
+
+        context.startService(intent);
+    }
+    public static void startActionScheduleSecondaryServices(Context context) {
+        Intent intent = new Intent(context, DistortBackgroundService.class);
+        intent.setAction(ACTION_SCHEDULE_SECONDARY_SERVICES);
 
         context.startService(intent);
     }
@@ -303,7 +343,12 @@ public class DistortBackgroundService extends IntentService {
             getAuthenticationParams();
 
             final String action = intent.getAction();
-            if (ACTION_FETCH_PEERS.equals(action)) {
+            if (ACTION_FETCH_ACCOUNT.equals(action)) {
+                Log.i("DISTORT-SERVICE", "Starting Fetch Account...");
+
+                handleActionFetchAccount();
+                Log.i("DISTORT-SERVICE", "Finished Fetch Account.");
+            } else if (ACTION_FETCH_PEERS.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Fetch Peers...");
                 handleActionFetchPeers();
                 Log.i("DISTORT-SERVICE", "Finished Fetch Peers.");
@@ -323,18 +368,58 @@ public class DistortBackgroundService extends IntentService {
                 String groupDatabaseId = intent.getStringExtra("groupDatabaseId");
                 handleActionFetchGroupConversations(groupDatabaseId);
                 Log.i("DISTORT-SERVICE", "Finished Fetch Conversations.");
-            } else if(ACTION_SCHEDULE_SERVICES.equals(action)) {
-                Log.i("DISTORT-SERVICE", "Starting Service Scheduling...");
+            } else if(ACTION_SCHEDULE_PRIMARY_SERVICES.equals(action)) {
+                Log.i("DISTORT-SERVICE", "Starting Primary Service Scheduling...");
 
-                handleActionScheduleServices();
-                Log.i("DISTORT-SERVICE", "Finished Service Scheduling.");
+                handleActionSchedulePrimaryServices();
+                Log.i("DISTORT-SERVICE", "Finished Primary Service Scheduling.");
+            } else if(ACTION_SCHEDULE_SECONDARY_SERVICES.equals(action)) {
+                Log.i("DISTORT-SERVICE", "Starting Secondary Service Scheduling...");
+
+                handleActionScheduleSecondaryServices();
+                Log.i("DISTORT-SERVICE", "Finished Secondary Service Scheduling.");
             }
         }
     }
 
-    /**
-     * Handle action fetch peers in the provided background thread.
-     */
+    private @Nullable DistortAccount handleActionFetchAccount() {
+        DistortAccount account = null;
+
+        // Attempt authentication against a network service.
+        try {
+            JsonReader response = null;
+            URL homeserverEndpoint = new URL(mLoginParams.getHomeserverAddress() + "account");
+            if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
+                HttpsURLConnection myConnection;
+                myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
+                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+            } else {
+                HttpURLConnection myConnection;
+                myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
+                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+            }
+
+            // Read account object
+            account = DistortAccount.readJson(response);
+            response.close();
+            saveAccountToLocal(account);
+
+            // Let know about the successful service
+            Intent intent = new Intent();
+            intent.setAction(ACTION_FETCH_ACCOUNT);
+            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+        } catch (DistortJson.DistortException e) {
+            // TODO: Handle background errors
+            e.printStackTrace();
+            Log.e("FETCH-ACCOUNT", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+        } catch (IOException e) {
+            // TODO: Handle background errors
+            e.printStackTrace();
+            Log.e("FETCH-ACCOUNT", e.getMessage());
+        }
+
+        return account;
+    }
     private HashMap<String, DistortPeer> handleActionFetchPeers() {
         HashMap<String, DistortPeer> peers = new HashMap<>();
 
@@ -355,7 +440,7 @@ public class DistortBackgroundService extends IntentService {
             // Read all groups
             response.beginArray();
             while(response.hasNext()) {
-                DistortPeer p = DistortPeer.readPeerJson(response);
+                DistortPeer p = DistortPeer.readJson(response);
                 peers.put(p.getFullAddress(), p);
             }
             response.endArray();
@@ -457,9 +542,9 @@ public class DistortBackgroundService extends IntentService {
             while (response.hasNext()) {
                 String key = response.nextName();
                 if (key.equals("in")) {
-                    inMessages = InMessage.readArrayJsonForConversation(response, conversationId);
+                    inMessages = InMessage.readArrayJsonForConversation(response, conversationDatabaseId);
                 } else if (key.equals("out")) {
-                    outMessages = OutMessage.readArrayJsonForConversation(response, conversationId);
+                    outMessages = OutMessage.readArrayJsonForConversation(response, conversationDatabaseId);
                 } else if (key.equals("conversation")) {
                     conversationId = response.nextString();
                 } else {
@@ -486,6 +571,8 @@ public class DistortBackgroundService extends IntentService {
             }
             if(conversationId != null) {
                 saveConversationMessagesToLocal(conversationId, existingMessages);
+            } else {
+                return existingMessages;
             }
 
             // Let know about the successful service
@@ -496,7 +583,7 @@ public class DistortBackgroundService extends IntentService {
                 // Broadcast to messaging
                 Intent intent = new Intent();
                 intent.setAction(ACTION_FETCH_MESSAGES);
-                intent.putExtra("conversationDatabaseId", conversationId);
+                intent.putExtra("conversationDatabaseId", conversationDatabaseId);
                 LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
             } else if(existingHeight < existingMessages.size()) {
                 // If heights different, notify of new messages
@@ -512,7 +599,7 @@ public class DistortBackgroundService extends IntentService {
                 intent.putExtra("peerId", localConversation.getPeerId());
                 intent.putExtra("accountName", localConversation.getAccountName());
                 intent.putExtra("groupDatabaseId", groupDatabaseId);
-                intent.putExtra("conversationDatabaseId", conversationId);
+                intent.putExtra("conversationDatabaseId", conversationDatabaseId);
                 PendingIntent pIntent = PendingIntent.getActivity(context, 0, intent, 0);
 
                 String title = getString(R.string.notification_messages_title);
@@ -547,6 +634,8 @@ public class DistortBackgroundService extends IntentService {
 
     private HashMap<String, DistortGroup> handleActionFetchGroups() {
         HashMap<String, DistortGroup> groups = new HashMap<>();
+        DistortAccount account = getLocalAccount(this);
+        @Nullable String activeGroupId = account.getActiveGroupId();
 
         // Attempt authentication against a network service.
         try {
@@ -565,7 +654,11 @@ public class DistortBackgroundService extends IntentService {
             // Read all groups
             response.beginArray();
             while(response.hasNext()) {
-                DistortGroup g = DistortGroup.readGroupJson(response);
+                DistortGroup g = DistortGroup.readJson(response);
+
+                if(g.getId().equals(activeGroupId)) {
+                    g.setIsActive(true);
+                }
                 groups.put(g.getId(), g);
             }
             response.endArray();
@@ -619,7 +712,7 @@ public class DistortBackgroundService extends IntentService {
             // Read all groups
             response.beginArray();
             while(response.hasNext()) {
-                DistortConversation c = DistortConversation.readConversationJson(response, group.getId());
+                DistortConversation c = DistortConversation.readJson(response, group.getId());
                 conversations.put(c.getId(), c);
             }
             response.endArray();
@@ -644,7 +737,7 @@ public class DistortBackgroundService extends IntentService {
     }
 
 
-    private void handleActionScheduleServices() {
+    private void handleActionSchedulePrimaryServices() {
         try {
             HashMap<String, DistortConversation> storedConversations = getLocalConversations(this);
 
@@ -665,6 +758,16 @@ public class DistortBackgroundService extends IntentService {
                     }
                 }
             }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handleActionScheduleSecondaryServices() {
+        try {
+            handleActionFetchAccount();
+            handleActionFetchGroups();
+            handleActionFetchPeers();
         } catch(Exception e) {
             e.printStackTrace();
         }

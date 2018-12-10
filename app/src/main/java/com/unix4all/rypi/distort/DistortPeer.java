@@ -104,7 +104,7 @@ public class DistortPeer {
 
 
     // Static parsing function
-    static DistortPeer readPeerJson(JsonReader json) throws IOException {
+    static DistortPeer readJson(JsonReader json) throws IOException {
         String nickname = null;
         String peerId = null;
         String accountName = null;
@@ -155,7 +155,7 @@ public class DistortPeer {
     }
 
     // Write this object to JSON
-    public void writePeerJson(JsonWriter json) throws IOException {
+    public void writeJson(JsonWriter json) throws IOException {
         // Read all fields from group
         json.beginObject();
         json.name("nickname").value(mNickname);

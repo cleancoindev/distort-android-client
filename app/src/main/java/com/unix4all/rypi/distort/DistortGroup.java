@@ -49,7 +49,7 @@ public class DistortGroup {
     }
 
     // Static parsing function
-    static DistortGroup readGroupJson(JsonReader json) throws IOException {
+    static DistortGroup readJson(JsonReader json) throws IOException {
         String name = null;
         String id = null;
         Integer subgroupIndex = null;
@@ -83,7 +83,7 @@ public class DistortGroup {
     }
 
     // Write this object to JSON
-    public void writeGroupJson(JsonWriter json) throws IOException {
+    public void writeJson(JsonWriter json) throws IOException {
         // Read all fields from group
         json.beginObject();
         json.name("name").value(mName);

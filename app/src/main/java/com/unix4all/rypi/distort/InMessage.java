@@ -2,11 +2,9 @@ package com.unix4all.rypi.distort;
 
 import android.util.JsonReader;
 import android.util.JsonWriter;
-import android.util.Log;
 
 import java.io.IOException;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -40,7 +38,7 @@ public class InMessage extends DistortMessage {
         mDateReceived = date;
     }
 
-    public static InMessage readMessageJson(JsonReader jsonReader) throws IOException {
+    public static InMessage readJson(JsonReader jsonReader) throws IOException {
         InMessage message = new InMessage();
 
         jsonReader.beginObject();
@@ -71,7 +69,7 @@ public class InMessage extends DistortMessage {
 
         jsonReader.beginArray();
         while(jsonReader.hasNext()) {
-            InMessage m = readMessageJson(jsonReader);
+            InMessage m = readJson(jsonReader);
             m.setConversationId(conversationDatabseId);
             messages.add(m);
         }
@@ -81,7 +79,7 @@ public class InMessage extends DistortMessage {
     }
 
     // Write this object to JSON
-    public void writeMessageJson(JsonWriter json) throws IOException {
+    public void writeJson(JsonWriter json) throws IOException {
         json.beginObject();
         json.name("verified").value(mVerified);
         json.name("_id").value(getId());

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/settingsOption"
+        android:orderInCategory="10"
+        android:title="@string/menu_settings_option">
+
+    </item>
+    <item
+        android:id="@+id/aboutOption"
+        android:orderInCategory="20"
+        android:title="@string/menu_about_option">
+
+    </item>
+</menu>
