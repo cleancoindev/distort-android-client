@@ -66,7 +66,7 @@ public class DistortBackgroundService extends IntentService {
     private void getAuthenticationParams() {
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
-                this.getResources().getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                this.getResources().getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
         mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
@@ -92,7 +92,6 @@ public class DistortBackgroundService extends IntentService {
             return null;
         }
     }
-    // Ha
     // Hashmap is keyed by peer full-address
     public static HashMap<String, DistortPeer> getLocalPeers(Context context) {
         HashMap<String, DistortPeer> peerSet = new HashMap<>();
@@ -692,8 +691,8 @@ public class DistortBackgroundService extends IntentService {
         }
         DistortGroup group = groups.get(groupDatabaseId);
 
-        // Get existing conversations from local
-        HashMap<String, DistortConversation> conversations = getLocalConversations(this);
+        // Use empty set since conversations may be deleted
+        HashMap<String, DistortConversation> conversations = new HashMap<>();
 
         // Attempt authentication against a network service.
         try {

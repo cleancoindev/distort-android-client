@@ -25,7 +25,7 @@
     <string name="message_from_self">Self</string>
     <string name="messages_total_height">Total Messages</string>
     <string name="messages_unread">Unread</string>
-    <string name="account_preferences_key">com.unix4all.rypi.distort.ACCOUNT_CREDENTIALS_PREFERENCES</string>
+    <string name="account_credentials_preferences_key">com.unix4all.rypi.distort.ACCOUNT_CREDENTIALS_PREFERENCES</string>
     <string name="prompt_group_name">Group Name</string>
     <string name="text_join_new_group">Can only message peers that belong to a group that you have also joined. Recommended to join default group \"bread\" (without quotation marks).</string>
     <string name="prompt_group_subgroup_level">(Optional subgroup level)</string>
@@ -120,6 +120,14 @@
     <string name="close_button">Close</string>
     <string name="text_about">This is the client application for DistoRt, a platform for providing anonymous and encrypted messaging between peers. Large anonymity groups are used to obscure the intended recipient of a message, and modern encryption schemes are used to ensure confidentiality.</string>
     <string name="toggle_enabled">Enabled</string>
-    <string name="save_settings_button" >Save</string>
+    <string name="save_settings_button">Save</string>
     <string name="prompt_active_group">Active Group</string>
+    <string name="prompt_remove">Remove</string>
+    <string name="prompt_cancel">Cancel</string>
+    <string name="title_remove_group">Are you sure you want to remove group?</string>
+    <string name="description_remove_group">Removing this group will cause all messages received on it to be deleted forever. You can not receive any messages sent to you over this group while it is removed.</string>
+    <string name="hint_wait_for_enable">Please wait 5 seconds for remove button to become active</string>
+    <string name="title_remove_peer">Are you sure you want to remove peer?</string>
+    <string name="description_remove_peer">You may still receive messages from this peer while they are not added, but they will not be displayed until the peer is added again.</string>
+    <string name="account_preferences_key">com.unix4all.rypi.distort.ACCOUNT_PREFERENCES</string>
 </resources>

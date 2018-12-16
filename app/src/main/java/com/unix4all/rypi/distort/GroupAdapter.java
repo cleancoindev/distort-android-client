@@ -17,9 +17,9 @@ import java.util.Random;
 
 public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
     private ArrayList<DistortGroup> mGroupsData;
-    private Context mContext;
+    private GroupsActivity mContext;
 
-    public GroupAdapter(Context context, ArrayList<DistortGroup> groups) {
+    public GroupAdapter(GroupsActivity context, ArrayList<DistortGroup> groups) {
         mGroupsData = groups;
         if(mGroupsData == null) {
             mGroupsData = new ArrayList<>();
@@ -34,7 +34,7 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
     }
 
     @Override
-    public void onBindViewHolder(GroupViewHolder holder, int position) {
+    public void onBindViewHolder(GroupViewHolder holder, final int position) {
         final DistortGroup g = mGroupsData.get(position);
 
         // Set group colour if active
@@ -63,11 +63,22 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
                 mContext.startActivity(mIntent);
             }
         });
+        holder.mGroupContainer.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                mContext.showRemoveGroup(position);
+                return true;
+            }
+        });
     }
 
     @Override
     public int getItemCount() {
         return mGroupsData.size();
+    }
+
+    public DistortGroup getItem(int arrayIndex) {
+        return mGroupsData.get(arrayIndex);
     }
 
     public void addOrUpdateGroup(DistortGroup group) {

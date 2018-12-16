@@ -16,9 +16,9 @@ import java.util.Random;
 
 public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHolder> {
     private ArrayList<DistortConversation> mConversationsData;
-    private Context mContext;
+    private PeerConversationActivity mContext;
 
-    public ConversationAdapter(Context context, ArrayList<DistortConversation> conversations) {
+    public ConversationAdapter(PeerConversationActivity context, ArrayList<DistortConversation> conversations) {
         mContext = context;
         if(conversations == null) {
             mConversationsData = new ArrayList<>();
@@ -34,7 +34,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
     }
 
     @Override
-    public void onBindViewHolder(ConversationViewHolder holder, int position) {
+    public void onBindViewHolder(final ConversationViewHolder holder, final int position) {
         final DistortConversation conversation = mConversationsData.get(position);
 
         // Attempt to set a human readable identifier for peer in decreasing order of pleasantness
@@ -53,10 +53,12 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
         String peerId = conversation.getFullAddress();
         holder.mPeerId.setText(peerId);
 
-        final ConversationViewHolder conversationViewHolder = holder;
         holder.mPeerContainer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                // Start background work
+                DistortBackgroundService.startActionFetchMessages(view.getContext(), conversation.getId());
+
                 Intent mIntent = new Intent(mContext, MessagingActivity.class);
 
                 // Put group and peer fields
@@ -67,9 +69,16 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
                 if(conversation.getId() != null) {
                     mIntent.putExtra("conversationDatabaseId", conversation.getId());
                 }
-                mIntent.putExtra("icon", conversationViewHolder.mIcon.getText().toString());
+                mIntent.putExtra("icon", holder.mIcon.getText().toString());
                 mIntent.putExtra("colorIcon", colour);
                 mContext.startActivity(mIntent);
+            }
+        });
+        holder.mPeerContainer.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                mContext.showRemovePeer(position);
+                return true;
             }
         });
     }
@@ -77,6 +86,10 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
     @Override
     public int getItemCount() {
         return mConversationsData.size();
+    }
+
+    public DistortConversation getItem(int arrayIndex) {
+        return mConversationsData.get(arrayIndex);
     }
 
     public void addOrUpdateConversation(DistortConversation conversation) {

@@ -74,8 +74,10 @@ public class DistortAccount {
             } else if(key.equals("activeGroup")) {
                 if(reader.peek().equals(JsonToken.BEGIN_OBJECT)) {
                     activeGroupId = DistortGroup.readJson(reader).getId();
-                } else {
+                } else if(reader.peek().equals(JsonToken.STRING)) {
                     activeGroupId = reader.nextString();
+                } else {
+                    reader.skipValue();
                 }
             } else if(key.equals("enabled")) {
                 enabled = reader.nextBoolean();

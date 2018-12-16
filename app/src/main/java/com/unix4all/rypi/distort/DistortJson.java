@@ -44,6 +44,23 @@ public class DistortJson {
         public Integer getResponseCode() {
             return mResponseCode;
         }
+
+        static public DistortException readJson(JsonReader json, Integer responseCode) throws IOException {
+            String errorString = "";
+
+            json.beginObject();
+            while(json.hasNext()) {
+                String key = json.nextName();
+                if(key.equals("error")) {
+                    errorString = json.nextString();
+                } else {
+                    json.skipValue();
+                }
+            }
+            json.endObject();
+
+            return new DistortException(errorString, responseCode);
+        }
     }
 
     public static @Nullable JsonReader GetJSONFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams) throws DistortException {
@@ -74,20 +91,7 @@ public class DistortJson {
             } else {
                 // Not response code 200, format is {"error": "..."}
                 jsonReader = new JsonReader(new InputStreamReader(myConnection.getErrorStream(), "UTF-8"));
-                String errorString = "";
-
-                jsonReader.beginObject();
-                while(jsonReader.hasNext()) {
-                    String key = jsonReader.nextName();
-                    if(key.equals("error")) {
-                        errorString = jsonReader.nextString();
-                    } else {
-                        jsonReader.skipValue();
-                    }
-                }
-                jsonReader.endObject();
-
-                throw new IOException(errorString);
+                throw DistortException.readJson(jsonReader, response);
             }
         } catch(IOException err) {
             throw new DistortException(err.getMessage(), response);
@@ -147,7 +151,7 @@ public class DistortJson {
             throw new DistortException(err.getMessage(), 0);
         }
 
-        return SendGetJSONFromURL(myConnection, loginParams, bodyParams);
+        return SendAndReadJSONFromURL(myConnection, loginParams, bodyParams);
     }
 
     public static @Nullable JsonReader PostBodyGetJSONFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams, Map<String, String> bodyParams) throws DistortException {
@@ -157,10 +161,20 @@ public class DistortJson {
             throw new DistortException(err.getMessage(), 0);
         }
 
-        return SendGetJSONFromURL(myConnection, loginParams, bodyParams);
+        return SendAndReadJSONFromURL(myConnection, loginParams, bodyParams);
     }
 
-    public static @Nullable JsonReader SendGetJSONFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams, Map<String, String> bodyParams) throws DistortException {
+    public static @Nullable JsonReader DeleteBodyGetJSONFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams, Map<String, String> bodyParams) throws DistortException {
+        try {
+            myConnection.setRequestMethod("DELETE");
+        } catch (IOException err) {
+            throw new DistortException(err.getMessage(), 0);
+        }
+
+        return SendAndReadJSONFromURL(myConnection, loginParams, bodyParams);
+    }
+
+    public static @Nullable JsonReader SendAndReadJSONFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams, Map<String, String> bodyParams) throws DistortException {
         myConnection.setDoOutput(true);
 
         String paramString = "";
@@ -210,20 +224,7 @@ public class DistortJson {
             } else {
                 // Not response code 200, format is {"error": "..."}
                 jsonReader = new JsonReader(new InputStreamReader(myConnection.getErrorStream(), "UTF-8"));
-                String errorString = "";
-
-                jsonReader.beginObject();
-                while (jsonReader.hasNext()) {
-                    String key = jsonReader.nextName();
-                    if (key.equals("error")) {
-                        errorString = jsonReader.nextString();
-                    } else {
-                        jsonReader.skipValue();
-                    }
-                }
-                jsonReader.endObject();
-
-                throw new IOException(errorString);
+                throw DistortException.readJson(jsonReader, response);
             }
         } catch(IOException err) {
             throw new DistortException(err.getMessage(), response);

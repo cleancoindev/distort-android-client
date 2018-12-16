@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.content.LocalBroadcastManager;
@@ -30,7 +31,7 @@ import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class PeerConversationActivity extends AppCompatActivity implements NewConversationFragment.NewConversationListener {
+public class PeerConversationActivity extends AppCompatActivity implements NewConversationFragment.NewConversationListener, TimedRemoveFragment.OnFragmentFinishedListener {
     private final PeerConversationActivity mActivity = this;
 
     private DistortAuthParams mLoginParams;
@@ -43,6 +44,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
     private ConversationServiceBroadcastReceiver mConversationServiceReceiver;
 
     private AddPeerTask mAddPeerTask;
+    private RemovePeerTask mRemovePeerTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +53,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
 
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
         mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
@@ -89,16 +91,16 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
             String fullAddress = DistortPeer.toFullAddress(c.getPeerId(), c.getAccountName());
             if(peerSet.get(fullAddress) != null) {
                 c.setFriendlyName(peerSet.get(fullAddress).getNickname());
+                conversations.add(c);
             }
-            conversations.add(c);
         }
         mConversationAdapter = new ConversationAdapter(PeerConversationActivity.this, conversations);
         mPeerConversationsView.setAdapter(mConversationAdapter);
 
-        // Add peers which publicly belong to this group
+        // Add peers which publicly belong to this group, but we don't have a conversation with
         for(Map.Entry<String, DistortPeer> peer : peerSet.entrySet()) {
             DistortPeer p = peer.getValue();
-            if(p.getGroups().get(mGroup.getName()) != null) {
+            if(p.getGroups().get(mGroup.getName()) != null && conversationSet.get(p.getFullAddress()) == null) {
                 DistortConversation c = new DistortConversation(null, mGroup.getId(), p.getPeerId(), p.getAccountName(), 0, new Date(0));
                 c.setFriendlyName(p.getNickname());
                 mConversationAdapter.addOrUpdateConversation(c);
@@ -131,10 +133,29 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         newConvoFragment.show(fm, "fragment_newConversationLayout");
     }
 
+    public void showRemovePeer(Integer position) {
+        FragmentManager fm = getSupportFragmentManager();
+
+        String title = getResources().getString(R.string.title_remove_peer);
+        String description = getResources().getString(R.string.description_remove_peer);
+
+        TimedRemoveFragment timedRemoveGroupFragment = TimedRemoveFragment.newInstance(this, title, description, position);
+        timedRemoveGroupFragment.show(fm, "fragment_removePeerLayout");
+    }
+
     @Override
     public void onFinishConvoFieldInputs(String friendlyName, String peerId, String accountName) {
         mAddPeerTask = new AddPeerTask(this, friendlyName, peerId, accountName);
         mAddPeerTask.execute();
+    }
+
+    @Override
+    public void onFragmentFinished(Boolean removeChoice, @Nullable Integer position) {
+        if(removeChoice && position != null) {
+            DistortConversation c = mConversationAdapter.getItem(position);
+            mRemovePeerTask = new RemovePeerTask(this, c.getPeerId(), c.getAccountName(), position);
+            mRemovePeerTask.execute();
+        }
     }
 
     // Handle successful retrieval of peers
@@ -146,15 +167,14 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         LocalBroadcastManager.getInstance(this).registerReceiver(mPeerServiceReceiver, intentFilter);
 
         // Start fetch peers task
-        // DistortBackgroundService.startActionFetchPeers(getApplicationContext());
+        DistortBackgroundService.startActionFetchPeers(getApplicationContext());
 
         mConversationServiceReceiver = new ConversationServiceBroadcastReceiver();
         intentFilter = new IntentFilter();
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_CONVERSATIONS);
         LocalBroadcastManager.getInstance(this).registerReceiver(mConversationServiceReceiver, intentFilter);
 
-        // Start fetch peers task
-        // DistortBackgroundService.startActionFetchPeers(getApplicationContext());
+        DistortBackgroundService.startActionFetchConversations(getApplicationContext(), mGroup.getName());
 
         super.onStart();
     }
@@ -205,12 +225,13 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
                     for(Map.Entry<String, DistortConversation> conversation : conversations.entrySet()) {
                         DistortConversation c = conversation.getValue();
 
-                        // Set nickname to conversation if exists
+                        // Set nickname to conversation if exists. Only show conversations with added peers
                         String fullAddress = DistortPeer.toFullAddress(c.getPeerId(), c.getAccountName());
-                        if(peers.get(fullAddress) != null) {
-                            c.setFriendlyName(peers.get(fullAddress).getNickname());
+                        DistortPeer p = peers.get(fullAddress);
+                        if(p != null && p.getGroups().get(mGroup.getName()) != null) {
+                            c.setFriendlyName(p.getNickname());
+                            mConversationAdapter.addOrUpdateConversation(c);
                         }
-                        mConversationAdapter.addOrUpdateConversation(c);
                     }
                 }
             });
@@ -271,6 +292,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
                     public void run() {
                         if(newPeer.getGroups().get(mGroup.getName()) != null) {
                             DistortConversation c = new DistortConversation(null, mGroup.getId(), mPeerId, mAccountName, 0, new Date(0));
+                            c.setFriendlyName(newPeer.getFriendlyName());
                             mConversationAdapter.addOrUpdateConversation(c);
                         }
                     }
@@ -299,7 +321,92 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
             // TODO: Handle errors here
             if (success) {
                 // Invalidated local peers cache, refetch
-                DistortBackgroundService.startActionFetchGroups(getApplicationContext());
+                Context appContext = getApplicationContext();
+                DistortBackgroundService.startActionFetchPeers(appContext);
+                DistortBackgroundService.startActionFetchConversations(appContext, mGroup.getName());
+            } else {
+
+            }
+        }
+    }
+
+    /**
+     * Represents an asynchronous task used to remove a peer
+     */
+    public class RemovePeerTask extends AsyncTask<Void, Void, Boolean> {
+
+        private Activity mActivity;
+        private String mPeerId;
+        private @Nullable String mAccountName;
+        private Integer mPosition;
+        private int mErrorCode;
+
+        RemovePeerTask(Activity activity, String peerId, @Nullable String accountName, Integer position) {
+            mActivity = activity;
+            mPeerId = peerId;
+            mAccountName = accountName;
+            mPosition = position;
+            mErrorCode = 0;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            mErrorCode = 0;
+
+            // Attempt authentication against a network service.
+            try {
+                JsonReader response = null;
+                String url = mLoginParams.getHomeserverAddress() + "peers";
+
+                HashMap<String, String> bodyParams = new HashMap<>();
+                bodyParams.put("peerId", mPeerId);
+                if(mAccountName != null && !mAccountName.isEmpty()) {
+                    bodyParams.put("accountName", mAccountName);
+                }
+
+                URL homeserverEndpoint = new URL(url);
+                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
+                    HttpsURLConnection myConnection;
+                    myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.DeleteBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                } else {
+                    HttpURLConnection myConnection;
+                    myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.DeleteBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                }
+                response.close();
+
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mConversationAdapter.removeItem(mPosition);
+                    }
+                });
+
+                return true;
+            } catch (DistortJson.DistortException e) {
+                mErrorCode = -1;
+                e.printStackTrace();
+                Log.e("REMOVE-PEER", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+
+                return false;
+            } catch (IOException e) {
+                mErrorCode = -2;
+                e.printStackTrace();
+
+                return false;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final Boolean success) {
+            mRemovePeerTask = null;
+            Log.d("REMOVE-PEER", String.valueOf(mErrorCode));
+
+            // TODO: Handle errors here
+            if (success) {
+                // Invalidated local peers cache, refetch
+                DistortBackgroundService.startActionFetchPeers(getApplicationContext());
             } else {
 
             }

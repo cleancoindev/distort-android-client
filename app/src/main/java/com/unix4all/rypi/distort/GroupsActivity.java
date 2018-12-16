@@ -27,13 +27,14 @@ import android.view.View;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class GroupsActivity extends AppCompatActivity implements NewGroupFragment.NewGroupListener {
+public class GroupsActivity extends AppCompatActivity implements NewGroupFragment.NewGroupListener, TimedRemoveFragment.OnFragmentFinishedListener {
     private final GroupsActivity mActivity = this;
 
     private DistortAuthParams mLoginParams;
@@ -43,8 +44,10 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
     private GroupAdapter mGroupsAdapter;
 
     private AddGroupTask mAddGroupTask;
+    private RemoveGroupTask mRemoveGroupTask;
 
-    private GroupServiceBroadcastReceiver mServiceReceiver;
+    private GroupServiceBroadcastReceiver mGroupServiceReceiver;
+    private AccountServiceBroadcastReceiver mAccountServiceReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +56,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
         mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
@@ -93,7 +96,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
             // Add group
             groups.add(group);
         }
-        mGroupsAdapter = new GroupAdapter(GroupsActivity.this, groups);
+        mGroupsAdapter = new GroupAdapter(this, groups);
         mGroupsView.setAdapter(mGroupsAdapter);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -130,10 +133,20 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         }
     }
 
-    private void showJoinNewGroup() {
+    public void showJoinNewGroup() {
         FragmentManager fm = getSupportFragmentManager();
         NewGroupFragment newGroupFragment = NewGroupFragment.newInstance();
         newGroupFragment.show(fm, "fragment_newGroupLayout");
+    }
+
+    public void showRemoveGroup(Integer groupIndex) {
+        FragmentManager fm = getSupportFragmentManager();
+
+        String title = getResources().getString(R.string.title_remove_group);
+        String description = getResources().getString(R.string.description_remove_group);
+
+        TimedRemoveFragment timedRemoveGroupFragment = TimedRemoveFragment.newInstance(this, title, description, groupIndex);
+        timedRemoveGroupFragment.show(fm, "fragment_removeGroupLayout");
     }
 
     @Override
@@ -142,37 +155,85 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         mAddGroupTask.execute();
     }
 
+    @Override
+    public void onFragmentFinished(Boolean removeChoice, @Nullable Integer groupIndex) {
+        if(removeChoice) {
+            String groupName = mGroupsAdapter.getItem(groupIndex).getName();
+            mRemoveGroupTask = new RemoveGroupTask(this, groupName, groupIndex);
+            mRemoveGroupTask.execute();
+        }
+    }
+
     // Handle successful retrieval of groups
     @Override
     protected void onStart() {
-        mServiceReceiver = new GroupsActivity.GroupServiceBroadcastReceiver();
+        mGroupServiceReceiver = new GroupsActivity.GroupServiceBroadcastReceiver();
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_GROUPS);
-        LocalBroadcastManager.getInstance(this).registerReceiver(mServiceReceiver, intentFilter);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mGroupServiceReceiver, intentFilter);
 
-        /// DistortBackgroundService.startActionFetchGroups(getApplicationContext());
+        mAccountServiceReceiver = new GroupsActivity.AccountServiceBroadcastReceiver();
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_ACCOUNT);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mAccountServiceReceiver, intentFilter);
+
+        DistortBackgroundService.startActionFetchAccount(getApplicationContext());
+
         super.onStart();
     }
     @Override
     protected void onStop() {
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(mServiceReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mGroupServiceReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mAccountServiceReceiver);
         super.onStop();
     }
 
     public class GroupServiceBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            // Can only update UI from UI thread
+            final HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(getApplicationContext());
             mActivity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(getApplicationContext());
-
                     for(Map.Entry<String, DistortGroup> group : allGroups.entrySet()) {
                         mGroupsAdapter.addOrUpdateGroup(group.getValue());
                     }
                 }
             });
+        }
+    }
+
+    public class AccountServiceBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final Context appContext = getApplicationContext();
+            final DistortAccount originalAccount = mAccount;
+            final DistortAccount account = DistortBackgroundService.getLocalAccount(appContext);
+
+            final HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(appContext);
+            final boolean activeGroupIsSet = account.getActiveGroupId() != null && !account.getActiveGroupId().isEmpty();
+            final boolean activeGroupWasSet = originalAccount.getActiveGroupId() != null && !originalAccount.getActiveGroupId().isEmpty();
+
+            mActivity.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (activeGroupWasSet) {
+                        DistortGroup originalGroup = allGroups.get(originalAccount.getActiveGroupId());
+                        if(originalGroup != null) {
+                            originalGroup.setIsActive(false);
+                            mGroupsAdapter.addOrUpdateGroup(originalGroup);
+                        }
+                    }
+                    if (activeGroupIsSet) {
+                        DistortGroup group = allGroups.get(account.getActiveGroupId());
+                        if(group != null) {
+                            group.setIsActive(true);
+                            mGroupsAdapter.addOrUpdateGroup(group);
+                        }
+                    }
+                }
+            });
+            mAccount = account;
         }
     }
 
@@ -217,9 +278,14 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                     response = DistortJson.PostBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
                 }
 
-                // Read all messages in messages and out messages
+                // Read new group response
                 final DistortGroup newGroup = DistortGroup.readJson(response);
                 response.close();
+
+                // If new group is the only group, then it will be active
+                if(mGroupsAdapter.getItemCount() == 0) {
+                    newGroup.setIsActive(true);
+                }
 
                 mActivity.runOnUiThread(new Runnable() {
                     @Override
@@ -247,6 +313,85 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         protected void onPostExecute(final Boolean success) {
             mAddGroupTask = null;
             Log.d("ADD-GROUP", String.valueOf(mErrorCode));
+
+            // TODO: Handle errors here
+            if (success) {
+                // Invalidated local groups cache, refetch
+                DistortBackgroundService.startActionFetchGroups(getApplicationContext());
+            } else {
+
+            }
+        }
+    }
+
+
+    /**
+     * Represents an asynchronous task used to remove a group
+     */
+    public class RemoveGroupTask extends AsyncTask<Void, Void, Boolean> {
+
+        private Activity mActivity;
+        private String mGroupName;
+        private int mIndex;
+        private int mErrorCode;
+
+        RemoveGroupTask(Activity activity, String groupName, int groupIndex) {
+            mActivity = activity;
+            mGroupName = groupName;
+            mIndex = groupIndex;
+            mErrorCode = 0;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            mErrorCode = 0;
+
+            // Attempt authentication against a network service.
+            try {
+                JsonReader response = null;
+                String url = mLoginParams.getHomeserverAddress() + "groups/" + URLEncoder.encode(mGroupName, "UTF-8");
+
+                HashMap<String, String> bodyParams = new HashMap<>();
+
+                URL homeserverEndpoint = new URL(url);
+                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
+                    HttpsURLConnection myConnection;
+                    myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.DeleteBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                } else {
+                    HttpURLConnection myConnection;
+                    myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
+                    response = DistortJson.DeleteBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                }
+
+                response.close();
+
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mGroupsAdapter.removeItem(mIndex);
+                    }
+                });
+
+                return true;
+            } catch (DistortJson.DistortException e) {
+                mErrorCode = -1;
+                e.printStackTrace();
+                Log.e("REMOVE-GROUP", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+
+                return false;
+            } catch (IOException e) {
+                mErrorCode = -2;
+                e.printStackTrace();
+
+                return false;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final Boolean success) {
+            mRemoveGroupTask = null;
+            Log.d("REMOVE-GROUP", String.valueOf(mErrorCode));
 
             // TODO: Handle errors here
             if (success) {

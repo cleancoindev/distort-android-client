@@ -107,7 +107,7 @@ public class LoginActivity extends AppCompatActivity {
         mProgressView = findViewById(R.id.login_progress);
 
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
         mToken = sharedPref.getString(EXTRA_CREDENTIAL, null);
         mSignInWithStoredButton = (Button) findViewById(R.id.signInWithStoredButton);
 
@@ -191,7 +191,7 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
         mToken = sharedPref.getString(EXTRA_CREDENTIAL, null);
         if(mToken != null) {
             mSignInWithStoredButton.setVisibility(View.VISIBLE);
@@ -346,7 +346,7 @@ public class LoginActivity extends AppCompatActivity {
                     }
                 } else {
                     SharedPreferences sharedPref = mContext.getSharedPreferences(
-                            getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                            getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
                     mAddress = sharedPref.getString(EXTRA_HOMESERVER, null);
                     mProtocol = sharedPref.getString(EXTRA_HOMESERVER_PROTOCOL, null);
                     mPeerId = sharedPref.getString(EXTRA_PEER_ID, null);
@@ -407,7 +407,7 @@ public class LoginActivity extends AppCompatActivity {
             if (success) {
                 // Save login  credentials for later ease
                 SharedPreferences sharedPref = mContext.getSharedPreferences(
-                        getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                        getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
                 SharedPreferences.Editor preferenceEditor = sharedPref.edit();
                 preferenceEditor.putString(EXTRA_HOMESERVER, mAddress);
                 preferenceEditor.putString(EXTRA_HOMESERVER_PROTOCOL, mProtocol);
@@ -418,13 +418,14 @@ public class LoginActivity extends AppCompatActivity {
 
                 // Create background tasks (and add to alarm if not already running)
                 Context appContext = getApplicationContext();
-                Intent intent = new Intent(appContext, DistortBackgroundService.class);
+                Intent intent;
                 PendingIntent pendingIntent;
                 Long timeInterval;
                 AlarmManager alarmMgr = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
 
                 // Create account,groups,peers task
                 timeInterval = AlarmManager.INTERVAL_HALF_HOUR;
+                intent = new Intent(appContext, DistortBackgroundService.class);
                 intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_SECONDARY_SERVICES);
                 pendingIntent = PendingIntent.getService(appContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
                 alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
@@ -432,8 +433,9 @@ public class LoginActivity extends AppCompatActivity {
 
                 // Create conversations,messages task, higher frequency
                 timeInterval = 180000L;
+                intent = new Intent(appContext, DistortBackgroundService.class);
                 intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_PRIMARY_SERVICES);
-                pendingIntent = PendingIntent.getService(appContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+                pendingIntent = PendingIntent.getService(appContext, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
                 alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
                 DistortBackgroundService.startActionSchedulePrimaryServices(appContext);
 

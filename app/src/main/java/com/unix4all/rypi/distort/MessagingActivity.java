@@ -66,7 +66,7 @@ public class MessagingActivity extends AppCompatActivity {
 
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
         mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));

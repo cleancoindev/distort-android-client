@@ -75,27 +75,29 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
     }
 
     public void addOrUpdateMessage(DistortMessage msg) {
-        int position = mMessagesData.size();
-        for(int i = 0; i < mMessagesData.size(); i++) {
-            if(mMessagesData.get(i).getId().equals(msg.getId())) {
-                position = i;
+
+        // Maintain a sorted array. Traverse from the end, where change is most expected
+        int i = mMessagesData.size() - 1;
+        for(; i >= 0; i--) {
+            if(mMessagesData.get(i).getIndex() < msg.getIndex()) {
                 break;
             }
         }
-        if(position == mMessagesData.size()) {
-            mMessagesData.add(position, msg);
-            notifyItemInserted(position);
+        i += 1;
+        if(i == mMessagesData.size() || mMessagesData.get(i).getIndex() > msg.getIndex()) {
+            mMessagesData.add(i, msg);
+            notifyItemInserted(i);
         } else {
-            if(mMessagesData.get(position).getType().equals(DistortMessage.TYPE_IN)) {
+            if(mMessagesData.get(i).getType().equals(DistortMessage.TYPE_IN)) {
                 InMessage inMsg = (InMessage) msg;
-                ((InMessage)mMessagesData.get(position)).setVerified(inMsg.getVerified());
+                ((InMessage)mMessagesData.get(i)).setVerified(inMsg.getVerified());
             } else {
                 OutMessage outMsg = (OutMessage) msg;
-                ((OutMessage)mMessagesData.get(position)).setLastStatusChange(outMsg.getLastStatusChange());
-                ((OutMessage)mMessagesData.get(position)).setStatus(outMsg.getStatus());
+                ((OutMessage)mMessagesData.get(i)).setLastStatusChange(outMsg.getLastStatusChange());
+                ((OutMessage)mMessagesData.get(i)).setStatus(outMsg.getStatus());
             }
 
-            notifyItemChanged(position);
+            notifyItemChanged(i);
         }
     }
 

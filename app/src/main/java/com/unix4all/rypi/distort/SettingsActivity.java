@@ -2,12 +2,9 @@ package com.unix4all.rypi.distort;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.JsonReader;
@@ -47,7 +44,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
+                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
         mLoginParams = new DistortAuthParams();
         mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
@@ -164,8 +161,10 @@ public class SettingsActivity extends AppCompatActivity {
 
             // TODO: Handle errors here
             if (success) {
-                DistortBackgroundService.startActionFetchAccount(mActivity);
-                DistortBackgroundService.startActionFetchGroups(mActivity);
+                Context context = getApplicationContext();
+                DistortBackgroundService.startActionFetchAccount(context);
+                DistortBackgroundService.startActionFetchGroups(context);
+                mActivity.finish();
             } else {
 
             }
