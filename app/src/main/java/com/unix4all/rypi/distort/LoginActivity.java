@@ -55,9 +55,10 @@ public class LoginActivity extends AppCompatActivity {
 
     /**
      * Regex Pattern to identify if a string is a valid homeserver address, as well as
-     * fetch relevant substring from the URL
+     * fetch relevant substring from the URL.
+     * TODO: It does not check that the port number is in a valid range. Either check in regex or function that verifies address
      */
-    private static final Pattern IS_ADDRESS_PATTERN = Pattern.compile("(http(s)?://)?([a-zA-Z0-9.-]+\\.[a-z]+)(:[0-9]*)?(/[a-zA-Z0-9%/.-]*)?");
+    private static final Pattern IS_ADDRESS_PATTERN = Pattern.compile("^(http(s)?://)?(([a-zA-Z0-9.-]+\\.[a-z]+)|((0*[0-9]|0*[1-9][0-9]|0*1[0-9][0-9]|0*2[0-4][0-9]|0*25[0-5])\\.){3}(0*[0-9]|0*[1-9][0-9]|0*1[0-9][0-9]|0*2[0-4][0-9]|0*25[0-5]))(:[0-9]*)?(/[a-zA-Z0-9%/.-]*)?$");
 
 
     /**

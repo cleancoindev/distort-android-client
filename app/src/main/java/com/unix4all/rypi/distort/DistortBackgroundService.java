@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -58,6 +59,8 @@ public class DistortBackgroundService extends IntentService {
     private static final String JSON_EXT = ".json";
 
     private DistortAuthParams mLoginParams;
+
+    private final static AtomicInteger notificationId = new AtomicInteger(0);
 
     public DistortBackgroundService() {
         super("DistortBackgroundService");
@@ -468,21 +471,25 @@ public class DistortBackgroundService extends IntentService {
     private ArrayList<DistortMessage> handleActionFetchConversationMessages(String conversationDatabaseId) {
         // Load conversations from storage
         HashMap<String, DistortConversation> conversations = getLocalConversations(this);
-        DistortConversation localConversation = conversations.get(conversationDatabaseId);
+        final DistortConversation localConversation = conversations.get(conversationDatabaseId);
 
         // Store previously retrieved messages to append to
         ArrayList<DistortMessage> existingMessages = new ArrayList<>();
 
         // Find existing copy of conversation in local storage
         Integer existingHeight = 0;
-        Integer startIndex = 0;
+        Integer startIndex;
         if(localConversation != null) {
             // Get known conversation messages and determine earliest message with volatile state (enqueued)
             ArrayList<DistortMessage> storedMessages = getLocalConversationMessages(this, conversationDatabaseId);
-            if(localConversation.getHeight() == 0) {
+            if(storedMessages.size() == 0) {
                 startIndex = 0;
+                existingHeight = 0;
             } else {
-                startIndex = storedMessages.size();
+                // Default to starting one message after last known message (in or out)
+                startIndex = storedMessages.get(storedMessages.size() - 1).getIndex() + 1;
+                existingHeight = startIndex;
+
                 for (int i = 0; i < storedMessages.size(); i++) {
                     DistortMessage m = storedMessages.get(i);
                     if (m.getType().equals(DistortMessage.TYPE_OUT)) {
@@ -564,8 +571,15 @@ public class DistortBackgroundService extends IntentService {
                 allMessages[m.getIndex() - startIndex] = m;
             }
 
-            // Append to pre-discovered messages
+            // Append to pre-discovered messages and determine if received a new message
+            boolean newMessages = false;
             for(int i = 0; i < allMessages.length; i++) {
+                // If we received a message greater than the previous highest index and was an in message, notify
+                if(allMessages[i].getIndex() >= existingHeight && allMessages[i].getType().equals(DistortMessage.TYPE_IN)) {
+                    newMessages = true;
+                }
+
+                // Add sorted messages to list of all messages
                 existingMessages.add(allMessages[i]);
             }
             if(conversationId != null) {
@@ -576,16 +590,19 @@ public class DistortBackgroundService extends IntentService {
 
             // Let know about the successful service
             SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
-            Boolean messagingActive = sharedPref.getBoolean("active", false);
+            String activeConversation = sharedPref.getString("activeConversation", "");
             Context context = getApplicationContext();
-            if(messagingActive) {
+
+            // Use group-Id + peer full-address to uniquely identify a conversation,
+            // even before a message has been sent or received
+            if(activeConversation.equals(groupDatabaseId.concat(localConversation.getFullAddress()))) {
                 // Broadcast to messaging
                 Intent intent = new Intent();
                 intent.setAction(ACTION_FETCH_MESSAGES);
                 intent.putExtra("conversationDatabaseId", conversationDatabaseId);
                 LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-            } else if(existingHeight < existingMessages.size()) {
-                // If heights different, notify of new messages
+            } else if(newMessages) {
+                // Received a previously unknown in-message, notify
                 Intent intent = new Intent(context, MessagingActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 
@@ -616,7 +633,7 @@ public class DistortBackgroundService extends IntentService {
                 // hide the notification after its selected and open activity
                 notification.flags |= Notification.FLAG_AUTO_CANCEL;
 
-                notificationManager.notify(0, notification);
+                notificationManager.notify(notificationId.getAndIncrement(), notification);
             }
 
         } catch (DistortJson.DistortException e) {

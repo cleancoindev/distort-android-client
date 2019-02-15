@@ -10,6 +10,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
@@ -35,6 +37,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
 
     @Override
     public void onBindViewHolder(MessageViewHolder holder, int position) {
+        DateFormat timeFormat = new SimpleDateFormat("HH:mm:ss MM/dd/yyyy");
+
         if(mMessagesData.get(position).getType().equals(DistortMessage.TYPE_IN)) {
             InMessage inMsg = (InMessage) mMessagesData.get(position);
 
@@ -49,6 +53,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
             holder.mFrom.setGravity(Gravity.LEFT);
             holder.mMessage.setText(inMsg.getMessage());
             holder.mMessage.setGravity(Gravity.LEFT);
+            holder.mTime.setText(timeFormat.format(inMsg.getDateReceived()));
+            holder.mTime.setGravity(Gravity.LEFT);
         } else {
             OutMessage outMsg = (OutMessage) mMessagesData.get(position);
 
@@ -66,6 +72,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
             holder.mFrom.setGravity(Gravity.RIGHT);
             holder.mMessage.setText(outMsg.getMessage());
             holder.mMessage.setGravity(Gravity.RIGHT);
+            holder.mTime.setText(timeFormat.format(outMsg.getLastStatusChange()));
+            holder.mTime.setGravity(Gravity.RIGHT);
         }
     }
 
@@ -110,6 +118,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
 class MessageViewHolder extends RecyclerView.ViewHolder {
     TextView mFrom;
     TextView mMessage;
+    TextView mTime;
     ConstraintLayout mMessageContainer;
 
     public MessageViewHolder(View itemView) {
@@ -117,6 +126,7 @@ class MessageViewHolder extends RecyclerView.ViewHolder {
 
         mFrom = itemView.findViewById(R.id.messageFrom);
         mMessage = itemView.findViewById(R.id.messageContent);
+        mTime = itemView.findViewById(R.id.messageTime);
         mMessageContainer = itemView.findViewById(R.id.messageContainer);
     }
 }

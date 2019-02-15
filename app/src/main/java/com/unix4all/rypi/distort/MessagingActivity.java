@@ -44,6 +44,7 @@ public class MessagingActivity extends AppCompatActivity {
     private String mPeerId;
     private String mAccountName;
     private String mFriendlyName;
+    private String mFullAddressString;
     private @Nullable DistortPeer mPeer;
     private @Nullable DistortConversation mConversation;
 
@@ -87,9 +88,9 @@ public class MessagingActivity extends AppCompatActivity {
             // Setup peer info
             mPeerId = bundle.getString("peerId");
             mAccountName = bundle.getString("accountame");
-            String fullAddress = DistortPeer.toFullAddress(mPeerId, mAccountName);
-            mFullAddress.setText(fullAddress);
-            mPeer = getPeerFromLocal(fullAddress);
+            mFullAddressString = DistortPeer.toFullAddress(mPeerId, mAccountName);
+            mFullAddress.setText(mFullAddressString);
+            mPeer = getPeerFromLocal(mFullAddressString);
 
             mFriendlyName = bundle.getString("friendlyName");
             if(mFriendlyName == null) {
@@ -154,7 +155,6 @@ public class MessagingActivity extends AppCompatActivity {
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_MESSAGES);
         LocalBroadcastManager.getInstance(this).registerReceiver(mServiceReceiver, intentFilter);
 
-        // DistortBackgroundService.startActionFetchMessages(getApplicationContext());
         super.onStart();
     }
     @Override
@@ -167,8 +167,11 @@ public class MessagingActivity extends AppCompatActivity {
         SharedPreferences sharedPref = this.getSharedPreferences(
                 getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
         SharedPreferences.Editor preferenceEditor = sharedPref.edit();
-        preferenceEditor.putBoolean("active", true);
-        preferenceEditor.commit();
+
+        // Use group-Id + peer full-address to uniquely identify a conversation,
+        // even before a message has been sent or received
+        preferenceEditor.putString("activeConversation", mGroup.getId().concat(mFullAddressString));
+        preferenceEditor.apply();
 
         if(mConversation != null) {
             final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getId());
@@ -190,7 +193,7 @@ public class MessagingActivity extends AppCompatActivity {
         SharedPreferences sharedPref = this.getSharedPreferences(
                 getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
         SharedPreferences.Editor preferenceEditor = sharedPref.edit();
-        preferenceEditor.putBoolean("active", false);
+        preferenceEditor.putString("activeConversation", null);
         preferenceEditor.commit();
 
         super.onPause();
