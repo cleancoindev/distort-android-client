@@ -8,16 +8,29 @@
     android:orientation="vertical"
     android:padding="10dp">
 
-    <!-- TODO: Update blank fragment layout -->
-
-    <EditText
-        android:id="@+id/newGroupName"
+    <LinearLayout
+        android:id="@+id/nameAndDefaultLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ems="10"
-        android:hint="@string/prompt_group_name"
-        android:importantForAutofill="no"
-        android:inputType="text" />
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/newGroupName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:ems="10"
+            android:hint="@string/prompt_group_name"
+            android:importantForAutofill="no"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/defaultGroupButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:text="@string/text_default_group_name" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/newGroupNameHelper"

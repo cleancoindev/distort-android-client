@@ -30,6 +30,7 @@ public class NewGroupFragment extends DialogFragment {
     private EditText mGroupName;
     private Spinner mGroupLevel;
     private Button mJoinGroup;
+    private Button mDefaultGroup;
 
 
     /**
@@ -69,6 +70,9 @@ public class NewGroupFragment extends DialogFragment {
         mGroupName = (EditText) view.findViewById(R.id.newGroupName);
         mGroupLevel = (Spinner) view.findViewById(R.id.newGroupLevel);
         mJoinGroup = (Button) view.findViewById(R.id.joinGroupButton);
+        mDefaultGroup = (Button) view.findViewById(R.id.defaultGroupButton);
+        mDefaultGroup.setText(R.string.text_default_group_name);
+
 
         // Set dialog title
         getDialog().setTitle(R.string.title_create_new_conversation);
@@ -81,6 +85,14 @@ public class NewGroupFragment extends DialogFragment {
             @Override
             public void onClick(View view) {
                 finishDialog();
+            }
+        });
+
+        // Set group name to default
+        mDefaultGroup.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mGroupName.setText(R.string.text_default_group_name);
             }
         });
     }
