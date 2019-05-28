@@ -233,16 +233,16 @@ public class MessagingActivity extends AppCompatActivity {
 
         private Activity mActivity;
         private String mNewMessageConversationId;
-        private String mErrorMessage;
+        private String mErrorString;
 
         SendMessageTask(Activity activity) {
             mActivity = activity;
-            mErrorMessage = "";
+            mErrorString = "";
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            mErrorMessage = "";
+            mErrorString = "";
 
             // Attempt authentication against a network service.
             try {
@@ -287,15 +287,19 @@ public class MessagingActivity extends AppCompatActivity {
 
                 return true;
             } catch (DistortJson.DistortException e) {
-                mErrorMessage = e.getMessage();
-                e.printStackTrace();
-                Log.e("SEND-MESSAGE", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
-
+                if (e.getResponseCode() == 400) {           // Fields were filled improperly
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 404) {    // Account does not belong to group, or missing peer's certificate
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 500) {
+                    Log.d("SEND-MESSAGE", e.getMessage());
+                    mErrorString = getString(R.string.error_server_error);
+                } else {
+                    mErrorString = e.getMessage();
+                }
                 return false;
             } catch (IOException e) {
-                mErrorMessage = e.getMessage();
-                e.printStackTrace();
-
+                mErrorString = e.getMessage();
                 return false;
             }
         }
@@ -303,16 +307,13 @@ public class MessagingActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(final Boolean success) {
             mSendMessageTask = null;
-            Log.d("SEND-MESSAGE", mErrorMessage);
-
-            // TODO: Handle errors here
             if (success) {
                 // We just invalidated conversations cache, update
                 DistortBackgroundService.startActionFetchConversations(getApplicationContext(), mGroup.getId());
                 DistortBackgroundService.startActionFetchMessages(getApplicationContext(), mNewMessageConversationId);
             } else {
-                mMessageEdit.setError(mErrorMessage);
-                mMessageEdit.setError(mErrorMessage);
+                mMessageEdit.setError(mErrorString);
+                mMessageEdit.setError(mErrorString);
             }
         }
     }

@@ -131,4 +131,7 @@
     <string name="description_remove_peer">You may still receive messages from this peer while they are not added, but they will not be displayed until the peer is added again.</string>
     <string name="account_preferences_key">com.unix4all.rypi.distort.ACCOUNT_PREFERENCES</string>
     <string name="text_default_group_name">パン</string>
+    <string name="error_server_error">The homeserver had an internal error</string>
+    <string name="error_invalid_account">The given account was not found</string>
+    <string name="error_missing_cert">Cannot until peer\'s next routine certificate post</string>
 </resources>

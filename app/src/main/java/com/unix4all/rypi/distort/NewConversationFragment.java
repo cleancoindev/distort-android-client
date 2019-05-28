@@ -1,20 +1,15 @@
 package com.unix4all.rypi.distort;
 
-import android.content.Context;
-import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
 
 
 /**
@@ -89,16 +84,11 @@ public class NewConversationFragment extends DialogFragment {
         });
     }
 
-    private boolean isValidPeerId(String peerId) {
-        return IpfsHash.isIpfsHash(peerId);
-    }
-
     private boolean finishDialog() {
         String friendlyName = mFriendlyName.getText().toString();
         String peerId = mPeerId.getText().toString();
         String accountName = mAccountName.getText().toString();
 
-        // TODO: Proper error handling messages
         if(friendlyName.isEmpty()) {
             mFriendlyName.setError(getResources().getString(R.string.error_field_required));
             mFriendlyName.requestFocus();
@@ -109,7 +99,7 @@ public class NewConversationFragment extends DialogFragment {
             mPeerId.requestFocus();
             return false;
         }
-        if(!isValidPeerId(peerId)) {
+        if(!IpfsHash.isIpfsHash(peerId)) {
             mPeerId.setError(getResources().getString(R.string.error_invalid_hash));
             mPeerId.requestFocus();
             return false;

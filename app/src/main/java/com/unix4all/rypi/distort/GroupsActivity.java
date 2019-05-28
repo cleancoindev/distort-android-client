@@ -10,6 +10,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
@@ -245,18 +246,18 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         private Activity mActivity;
         private String mGroupName;
         private Integer mSubgroupLevel;
-        private int mErrorCode;
+        private String mErrorString;
 
         AddGroupTask(Activity activity, String groupName, Integer subgroupLevel) {
             mActivity = activity;
             mGroupName = groupName;
             mSubgroupLevel = subgroupLevel;
-            mErrorCode = 0;
+            mErrorString = "";
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            mErrorCode = 0;
+            mErrorString = "";
 
             // Attempt authentication against a network service.
             try {
@@ -296,15 +297,17 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
                 return true;
             } catch (DistortJson.DistortException e) {
-                mErrorCode = -1;
-                e.printStackTrace();
-                Log.e("ADD-GROUP", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
-
+                if (e.getResponseCode() == 400) {           // Incorrectly formatted fields
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 500) {
+                    Log.d("ADD-GROUP", e.getMessage());
+                    mErrorString = getString(R.string.error_server_error);
+                } else {
+                    mErrorString = e.getMessage();
+                }
                 return false;
             } catch (IOException e) {
-                mErrorCode = -2;
-                e.printStackTrace();
-
+                mErrorString = e.getMessage();
                 return false;
             }
         }
@@ -312,14 +315,13 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         @Override
         protected void onPostExecute(final Boolean success) {
             mAddGroupTask = null;
-            Log.d("ADD-GROUP", String.valueOf(mErrorCode));
-
-            // TODO: Handle errors here
             if (success) {
                 // Invalidated local groups cache, refetch
                 DistortBackgroundService.startActionFetchGroups(getApplicationContext());
             } else {
-
+                Snackbar.make(findViewById(R.id.groupConstraintLayout), mErrorString,
+                    Snackbar.LENGTH_LONG)
+                    .show();
             }
         }
     }
@@ -333,18 +335,18 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         private Activity mActivity;
         private String mGroupName;
         private int mIndex;
-        private int mErrorCode;
+        private String mErrorString;
 
         RemoveGroupTask(Activity activity, String groupName, int groupIndex) {
             mActivity = activity;
             mGroupName = groupName;
             mIndex = groupIndex;
-            mErrorCode = 0;
+            mErrorString = "";
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            mErrorCode = 0;
+            mErrorString = "";
 
             // Attempt authentication against a network service.
             try {
@@ -375,15 +377,17 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
                 return true;
             } catch (DistortJson.DistortException e) {
-                mErrorCode = -1;
-                e.printStackTrace();
-                Log.e("REMOVE-GROUP", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
-
+                if (e.getResponseCode() == 404) {           // User is not a member of specified account
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 500) {
+                    Log.d("REMOVE-GROUP", e.getMessage());
+                    mErrorString = getString(R.string.error_server_error);
+                } else {
+                    mErrorString = e.getMessage();
+                }
                 return false;
             } catch (IOException e) {
-                mErrorCode = -2;
-                e.printStackTrace();
-
+                mErrorString = e.getMessage();
                 return false;
             }
         }
@@ -391,14 +395,13 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         @Override
         protected void onPostExecute(final Boolean success) {
             mRemoveGroupTask = null;
-            Log.d("REMOVE-GROUP", String.valueOf(mErrorCode));
-
-            // TODO: Handle errors here
             if (success) {
                 // Invalidated local groups cache, refetch
                 DistortBackgroundService.startActionFetchGroups(getApplicationContext());
             } else {
-
+                Snackbar.make(findViewById(R.id.groupConstraintLayout), mErrorString,
+                    Snackbar.LENGTH_LONG)
+                    .show();
             }
         }
     }

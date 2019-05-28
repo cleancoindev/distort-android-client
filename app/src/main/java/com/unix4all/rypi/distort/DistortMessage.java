@@ -4,7 +4,6 @@ import java.text.SimpleDateFormat;
 import java.util.Locale;
 
 public abstract class DistortMessage {
-    private String mId;
     private String mMessage;
     private String mConversationId;
     private Integer mIndex;
@@ -16,9 +15,6 @@ public abstract class DistortMessage {
 
     // Getters
     public abstract String getType();
-    public String getId() {
-        return mId;
-    }
     public String getConversationId() {
         return mConversationId;
     }
@@ -30,9 +26,6 @@ public abstract class DistortMessage {
     }
 
     // Setters
-    public void setId(String id) {
-        mId = id;
-    }
     public void setConversationId(String conversationDatabaseId) {
         mConversationId = conversationDatabaseId;
     }

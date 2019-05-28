@@ -53,6 +53,7 @@ public class DistortJson {
                 String key = json.nextName();
                 if(key.equals("error")) {
                     errorString = json.nextString();
+                    break;
                 } else {
                     json.skipValue();
                 }
@@ -82,6 +83,7 @@ public class DistortJson {
 
 
             // Make connection and determine response
+            myConnection.setConnectTimeout(5000);
             myConnection.connect();
             response = myConnection.getResponseCode();
 
@@ -102,44 +104,26 @@ public class DistortJson {
         return jsonReader;
     }
 
-    public static ResponseString GetResponseStringFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams) throws DistortException {
-        Integer responseCode = 0;
-        ResponseString responseString;
+    public static ResponseString GetMessageStringFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams) throws DistortException {
+
+        JsonReader json = GetJSONFromURL(myConnection, loginParams);
+        String message = "";
         try {
-            myConnection.setRequestMethod("GET");
-
-            // Set request header fields
-            myConnection.setRequestProperty("User-Agent", "distort-android-v0.1");
-            myConnection.setRequestProperty("Accept", "*/*");
-
-            // Auth header fields
-            myConnection.setRequestProperty("peerid", loginParams.getPeerId());
-            myConnection.setRequestProperty("authtoken", loginParams.getCredential());
-            if (loginParams.getAccountName().length() > 0) {
-                myConnection.setRequestProperty("accountname", loginParams.getAccountName());
+            json.beginObject();
+            while(json.hasNext()) {
+                String key = json.nextName();
+                if(key.equals("message")) {
+                    message = json.nextString();
+                    break;
+                } else {
+                    json.skipValue();
+                }
             }
-
-            // Make connection and determine response
-            myConnection.connect();
-            responseCode = myConnection.getResponseCode();
-            BufferedReader reader;
-            if (responseCode == 200) {
-                reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(myConnection.getInputStream())));
-            } else {
-                reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(myConnection.getErrorStream())));
-            }
-            String inputLine;
-            StringBuffer sb = new StringBuffer();
-            while ((inputLine = reader.readLine()) != null) {
-                sb.append(inputLine);
-            }
-
-            responseString = new ResponseString(responseCode, sb.toString());
+            json.endObject();
         } catch(IOException err) {
-            throw new DistortException(err.getMessage(), responseCode);
-        } finally {
-            myConnection.disconnect();
+            throw new DistortException(err.getMessage(), 200);
         }
+        ResponseString responseString = new ResponseString(200, message);
 
         return responseString;
     }
@@ -174,7 +158,7 @@ public class DistortJson {
         return SendAndReadJSONFromURL(myConnection, loginParams, bodyParams);
     }
 
-    public static @Nullable JsonReader SendAndReadJSONFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams, Map<String, String> bodyParams) throws DistortException {
+    private static @Nullable JsonReader SendAndReadJSONFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams, Map<String, String> bodyParams) throws DistortException {
         myConnection.setDoOutput(true);
 
         String paramString = "";
@@ -210,6 +194,7 @@ public class DistortJson {
             }
 
             // Make connection and determine response
+            myConnection.setConnectTimeout(5000);
             myConnection.connect();
 
             DataOutputStream wr = new DataOutputStream(myConnection.getOutputStream());

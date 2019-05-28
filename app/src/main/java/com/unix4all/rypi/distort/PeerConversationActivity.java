@@ -10,6 +10,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
@@ -174,7 +175,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_CONVERSATIONS);
         LocalBroadcastManager.getInstance(this).registerReceiver(mConversationServiceReceiver, intentFilter);
 
-        DistortBackgroundService.startActionFetchConversations(getApplicationContext(), mGroup.getName());
+        DistortBackgroundService.startActionFetchConversations(getApplicationContext(), mGroup.getId());
 
         super.onStart();
     }
@@ -248,19 +249,19 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         private String mFriendlyName;
         private String mPeerId;
         private String mAccountName;
-        private int mErrorCode;
+        private String mErrorString;
 
         AddPeerTask(Activity activity, String friendlyName, String peerId, String accountName) {
             mActivity = activity;
             mFriendlyName = friendlyName;
             mPeerId = peerId;
             mAccountName = accountName;
-            mErrorCode = 0;
+            mErrorString = "";
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            mErrorCode = 0;
+            mErrorString = "";
 
             // Attempt authentication against a network service.
             try {
@@ -273,7 +274,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
                 bodyParams.put("accountName", mAccountName);
 
                 URL homeserverEndpoint = new URL(url);
-                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
+                if (DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                     HttpsURLConnection myConnection;
                     myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
                     response = DistortJson.PostBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
@@ -290,7 +291,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
                 mActivity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if(newPeer.getGroups().get(mGroup.getName()) != null) {
+                        if (newPeer.getGroups().get(mGroup.getName()) != null) {
                             DistortConversation c = new DistortConversation(null, mGroup.getId(), mPeerId, mAccountName, 0, new Date(0));
                             c.setFriendlyName(newPeer.getFriendlyName());
                             mConversationAdapter.addOrUpdateConversation(c);
@@ -300,15 +301,19 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
 
                 return true;
             } catch (DistortJson.DistortException e) {
-                mErrorCode = -1;
-                e.printStackTrace();
-                Log.e("ADD-PEER", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+                if (e.getResponseCode() == 404) {
+                    Log.d("ADD-PEER", e.getMessage());
+                    mErrorString = getString(R.string.error_missing_cert);
+                } else if (e.getResponseCode() == 500) {
+                    Log.d("ADD-PEER", e.getMessage());
+                    mErrorString = getString(R.string.error_server_error);
+                } else {
+                    mErrorString = e.getMessage();
+                }
 
                 return false;
             } catch (IOException e) {
-                mErrorCode = -2;
-                e.printStackTrace();
-
+                mErrorString = e.getMessage();
                 return false;
             }
         }
@@ -316,16 +321,15 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         @Override
         protected void onPostExecute(final Boolean success) {
             mAddPeerTask = null;
-            Log.d("ADD-PEER", String.valueOf(mErrorCode));
-
-            // TODO: Handle errors here
             if (success) {
                 // Invalidated local peers cache, refetch
                 Context appContext = getApplicationContext();
                 DistortBackgroundService.startActionFetchPeers(appContext);
                 DistortBackgroundService.startActionFetchConversations(appContext, mGroup.getName());
             } else {
-
+                Snackbar.make(findViewById(R.id.peerConversationsConstraintLayout), mErrorString,
+                        Snackbar.LENGTH_LONG)
+                        .show();
             }
         }
     }
@@ -339,19 +343,19 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         private String mPeerId;
         private @Nullable String mAccountName;
         private Integer mPosition;
-        private int mErrorCode;
+        private String mErrorString;
 
         RemovePeerTask(Activity activity, String peerId, @Nullable String accountName, Integer position) {
             mActivity = activity;
             mPeerId = peerId;
             mAccountName = accountName;
             mPosition = position;
-            mErrorCode = 0;
+            mErrorString = "";
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            mErrorCode = 0;
+            mErrorString = "";
 
             // Attempt authentication against a network service.
             try {
@@ -385,15 +389,22 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
 
                 return true;
             } catch (DistortJson.DistortException e) {
-                mErrorCode = -1;
-                e.printStackTrace();
-                Log.e("REMOVE-PEER", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+                if (e.getResponseCode() == 400) {
+                    // The peer's IPFS ID was not specified
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 404) {
+                    // The specified peer does not exist (locally)
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 500) {
+                    Log.d("REMOVE-PEER", e.getMessage());
+                    mErrorString = getString(R.string.error_server_error);
+                } else {
+                    mErrorString = e.getMessage();
+                }
 
                 return false;
             } catch (IOException e) {
-                mErrorCode = -2;
-                e.printStackTrace();
-
+                mErrorString = e.getMessage();
                 return false;
             }
         }
@@ -401,14 +412,13 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         @Override
         protected void onPostExecute(final Boolean success) {
             mRemovePeerTask = null;
-            Log.d("REMOVE-PEER", String.valueOf(mErrorCode));
-
-            // TODO: Handle errors here
             if (success) {
                 // Invalidated local peers cache, refetch
                 DistortBackgroundService.startActionFetchPeers(getApplicationContext());
             } else {
-
+                Snackbar.make(findViewById(R.id.peerConversationsConstraintLayout), mErrorString,
+                    Snackbar.LENGTH_LONG)
+                    .show();
             }
         }
     }

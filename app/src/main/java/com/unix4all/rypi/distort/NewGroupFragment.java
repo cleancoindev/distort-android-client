@@ -101,7 +101,6 @@ public class NewGroupFragment extends DialogFragment {
         String groupName = mGroupName.getText().toString();
         Integer subgroupLevel = mGroupLevel.getSelectedItemPosition();
 
-        // TODO: Proper error handling messages
         if(groupName.isEmpty()) {
             mGroupName.setError(getResources().getString(R.string.error_field_required));
             mGroupName.requestFocus();

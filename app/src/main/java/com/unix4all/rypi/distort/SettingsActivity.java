@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.JsonReader;
@@ -100,20 +101,20 @@ public class SettingsActivity extends AppCompatActivity {
     public class UpdateAccountTask extends AsyncTask<Void, Void, Boolean> {
 
         private Activity mActivity;
-        private int mErrorCode;
+        private String mErrorString;
 
         UpdateAccountTask(Activity activity) {
             mActivity = activity;
-            mErrorCode = 0;
+            mErrorString = "";
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            mErrorCode = 0;
+            mErrorString = "";
 
             // Attempt authentication against a network service.
             try {
-                JsonReader response = null;
+                JsonReader response;
                 String url = mLoginParams.getHomeserverAddress() + "account";
 
                 HashMap<String, String> bodyParams = new HashMap<>();
@@ -141,15 +142,19 @@ public class SettingsActivity extends AppCompatActivity {
 
                 return true;
             } catch (DistortJson.DistortException e) {
-                mErrorCode = -1;
-                e.printStackTrace();
-                Log.e("UPDATE-ACCOUNT", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
-
+                if (e.getResponseCode() == 403) {           // Not authorized to update specified account
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 404) {    // Account to update does not exist
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 500) {
+                    Log.d("UPDATE-ACCOUNT", e.getMessage());
+                    mErrorString = getString(R.string.error_server_error);
+                } else {
+                    mErrorString = e.getMessage();
+                }
                 return false;
             } catch (IOException e) {
-                mErrorCode = -2;
-                e.printStackTrace();
-
+                mErrorString = e.getMessage();
                 return false;
             }
         }
@@ -157,16 +162,15 @@ public class SettingsActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(final Boolean success) {
             mUpdateAccountTask = null;
-            Log.d("UPDATE-ACCOUNT", String.valueOf(mErrorCode));
-
-            // TODO: Handle errors here
             if (success) {
                 Context context = getApplicationContext();
                 DistortBackgroundService.startActionFetchAccount(context);
                 DistortBackgroundService.startActionFetchGroups(context);
                 mActivity.finish();
             } else {
-
+                Snackbar.make(findViewById(R.id.settingsCoordinatorLayout), mErrorString,
+                    Snackbar.LENGTH_LONG)
+                    .show();
             }
         }
     }

@@ -44,9 +44,7 @@ public class InMessage extends DistortMessage {
         jsonReader.beginObject();
         while(jsonReader.hasNext()) {
             String key = jsonReader.nextName();
-            if(key.equals("_id")) {
-                message.setId(jsonReader.nextString());
-            } else if(key.equals("conversation")) {
+            if(key.equals("conversation")) {
                 message.setConversationId(jsonReader.nextString());
             } else if(key.equals("verified")) {
                 message.setVerified(jsonReader.nextBoolean());
@@ -82,7 +80,6 @@ public class InMessage extends DistortMessage {
     public void writeJson(JsonWriter json) throws IOException {
         json.beginObject();
         json.name("verified").value(mVerified);
-        json.name("_id").value(getId());
         json.name("index").value(getIndex());
         json.name("message").value(getMessage());
         json.name("dateReceived").value(mongoDateFormat.format(mDateReceived));
