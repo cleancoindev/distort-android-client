@@ -21,3 +21,7 @@ if the user manually installs it to their Android device.
     <img src="images/notifications.png" width="300" height="183" />
 * #### Leave Group
     <img src="images/leave_group.png" width="300" height="533" />
+* #### Display Account as QR Code
+    <img src="images/display_qr.png" width="300" height="533" />
+* #### Read Peer Accounts as QR Codes
+    <img src="images/read_qr.png" width="300" height="533" />

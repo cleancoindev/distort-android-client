@@ -130,6 +130,11 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                 Intent intent = new Intent(this, SettingsActivity.class);
                 this.startActivity(intent);
                 return true;
+            case R.id.accountIdOption:
+                fm = getSupportFragmentManager();
+                AccountIdFragment accountIdFragment = AccountIdFragment.newInstance(mLoginParams.getPeerId(), mLoginParams.getAccountName());
+                accountIdFragment.show(fm, "fragment_accountIdLayout");
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }

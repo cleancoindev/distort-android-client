@@ -137,4 +137,8 @@
     <string name="prompt_set">SET</string>
     <string name="title_change_password">Change Password</string>
     <string name="error_passwords_do_not_math">Passwords do not match</string>
+    <string name="menu_account_id">Account ID</string>
+    <string name="label_account_id">Account Full ID</string>
+    <string name="text_place_holder">PLACE HOLDER</string>
+    <string name="error_invalid_barcode">Invalid account ID</string>
 </resources>
