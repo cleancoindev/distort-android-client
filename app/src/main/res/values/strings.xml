@@ -118,9 +118,8 @@
     <string name="pref_title_vibrate">Vibrate</string>
     <string name="title_about">About</string>
     <string name="close_button">Close</string>
-    <string name="text_about">This is the client application for DistoRt, a platform for providing anonymous and encrypted messaging between peers. Large anonymity groups are used to obscure the intended recipient of a message, and modern encryption schemes are used to ensure confidentiality.</string>
+    <string name="text_about">This is the reference client app for DistoRt, a platform for providing anonymous and encrypted messaging between peers. Large anonymity groups are used to obscure the intended recipient of a message, and modern encryption schemes are used to ensure confidentiality.</string>
     <string name="toggle_enabled">Enabled</string>
-    <string name="save_settings_button">Save</string>
     <string name="prompt_active_group">Active Group</string>
     <string name="prompt_remove">Remove</string>
     <string name="prompt_cancel">Cancel</string>
@@ -134,4 +133,8 @@
     <string name="error_server_error">The homeserver had an internal error</string>
     <string name="error_invalid_account">The given account was not found</string>
     <string name="error_missing_cert">Cannot until peer\'s next routine certificate post</string>
+    <string name="change_password_button">Change password</string>
+    <string name="prompt_set">SET</string>
+    <string name="title_change_password">Change Password</string>
+    <string name="error_passwords_do_not_math">Passwords do not match</string>
 </resources>

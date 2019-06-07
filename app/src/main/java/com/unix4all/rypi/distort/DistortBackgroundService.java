@@ -51,6 +51,9 @@ public class DistortBackgroundService extends IntentService {
     public static final String ACTION_SCHEDULE_PRIMARY_SERVICES = "com.unix4all.rypi.distort.action.SCHEDULE_PRIMARY_SERVICES";
     public static final String ACTION_SCHEDULE_SECONDARY_SERVICES = "com.unix4all.rypi.distort.action.SCHEDULE_SECONDARY_SERVICES";
 
+    // Report errors to activities
+    public static final String BACKGROUND_ERROR = "com.unix4all.rypi.distort.action.BACKGROUND_ERROR";
+
     // Saved local files
     private static final String PEERS_FILE_NAME = "peers.json";
     private static final String GROUPS_FILE_NAME = "groups.json";
@@ -76,6 +79,13 @@ public class DistortBackgroundService extends IntentService {
         mLoginParams.setPeerId(sharedPref.getString(DistortAuthParams.EXTRA_PEER_ID, null));
         mLoginParams.setAccountName(sharedPref.getString(DistortAuthParams.EXTRA_ACCOUNT_NAME, null));
         mLoginParams.setCredential(sharedPref.getString(DistortAuthParams.EXTRA_CREDENTIAL, null));
+    }
+
+    private void reportError(String errorString) {
+        Intent intent = new Intent();
+        intent.setAction(BACKGROUND_ERROR);
+        intent.putExtra("error", errorString);
+        LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
     }
 
     // Getting locally stored values
@@ -115,9 +125,8 @@ public class DistortBackgroundService extends IntentService {
             json.endArray();
             json.close();
         } catch (Exception e) {
-            Log.w("STORED-PEERS", "Could not parse peers file");
+            Log.e("STORED-PEERS", "Could not parse peers file");
         }
-
         return peerSet;
     }
     // Hashmap is keyed by group database-ID
@@ -140,9 +149,8 @@ public class DistortBackgroundService extends IntentService {
             json.endArray();
             json.close();
         } catch (Exception e) {
-            Log.w("STORED-GROUPS", "Could not parse groups file");
+            Log.e("STORED-GROUPS", "Could not parse groups file");
         }
-
         return groupSet;
     }
     // Hashmap is keyed by conversation database-ID
@@ -161,10 +169,9 @@ public class DistortBackgroundService extends IntentService {
             json.endArray();
             json.close();
         } catch (Exception e) {
-            Log.w("STORED-CONVERSATIONS", "Could not parse conversations file");
-        } finally {
-            return conversationSet;
+            Log.e("STORED-CONVERSATIONS", "Could not parse conversations file");
         }
+        return conversationSet;
     }
     public static ArrayList<DistortMessage> getLocalConversationMessages(Context context, String conversationDatabaseId) {
         ArrayList<DistortMessage> messages = new ArrayList<>();
@@ -195,12 +202,9 @@ public class DistortBackgroundService extends IntentService {
             }
             json.endArray();
             json.close();
-        } catch (FileNotFoundException e) {
-            Log.d("STORED-MESSAGES", "FileNotFoundException was thrown");
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("STORED-MESSAGES", "Could not parse conversation messages file");
         }
-
         return messages;
     }
 
@@ -230,7 +234,7 @@ public class DistortBackgroundService extends IntentService {
             json.endArray();
             json.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            reportError(e.getMessage());
         }
     }
     // Hashmap keyed by group database-ID
@@ -247,7 +251,7 @@ public class DistortBackgroundService extends IntentService {
             json.endArray();
             json.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            reportError(e.getMessage());
         }
     }
     // Hashmap keyed by conversation database-ID
@@ -264,7 +268,7 @@ public class DistortBackgroundService extends IntentService {
             json.endArray();
             json.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            reportError(e.getMessage());
         }
     }
     private void saveConversationMessagesToLocal(String conversationDatabaseId, ArrayList<DistortMessage> messages) {
@@ -289,7 +293,7 @@ public class DistortBackgroundService extends IntentService {
             json.endArray();
             json.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            reportError(e.getMessage());
         }
     }
 
@@ -411,12 +415,11 @@ public class DistortBackgroundService extends IntentService {
             intent.setAction(ACTION_FETCH_ACCOUNT);
             LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
         } catch (DistortJson.DistortException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            // TODO: Base message off of response codes
+            reportError(e.getMessage());
             Log.e("FETCH-ACCOUNT", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
         } catch (IOException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            reportError(e.getMessage());
             Log.e("FETCH-ACCOUNT", e.getMessage());
         }
 
@@ -454,12 +457,11 @@ public class DistortBackgroundService extends IntentService {
             intent.setAction(ACTION_FETCH_PEERS);
             LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
         } catch (DistortJson.DistortException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            // TODO: Base message off of response codes
+            reportError(e.getMessage());
             Log.e("FETCH-PEERS", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
         } catch (IOException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            reportError(e.getMessage());
             Log.e("FETCH-PEERS", e.getMessage());
         }
         return peers;
@@ -511,8 +513,9 @@ public class DistortBackgroundService extends IntentService {
         HashMap<String, DistortGroup> groups = getLocalGroups(this);
         String groupDatabaseId = localConversation.getGroupId();
         if(groups == null || groups.get(groupDatabaseId) == null) {
-            // TODO: Properly return error to caller
-            Log.e("FETCH-MESSAGES", "Group ID:" + groupDatabaseId + " is not known locally");
+            String errorString = "Group ID:" + groupDatabaseId + " is not known locally";
+            reportError(errorString);
+            Log.e("FETCH-MESSAGES", errorString);
             return existingMessages;
         }
         DistortGroup group = groups.get(groupDatabaseId);
@@ -520,6 +523,7 @@ public class DistortBackgroundService extends IntentService {
         Log.d("FETCH-MESSAGES", "Fetching messages from group: " + group.getName() + ", peer: " + localConversation.getFriendlyName());
 
         // Attempt authentication against a network service.
+        Context context = getApplicationContext();
         try {
             JsonReader response = null;
             String url = mLoginParams.getHomeserverAddress() + "groups/" + URLEncoder.encode(group.getName()) + "/" + String.valueOf(startIndex);
@@ -591,7 +595,6 @@ public class DistortBackgroundService extends IntentService {
             // Let know about the successful service
             SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
             String activeConversation = sharedPref.getString("activeConversation", "");
-            Context context = getApplicationContext();
 
             // Use group-Id + peer full-address to uniquely identify a conversation,
             // even before a message has been sent or received
@@ -637,12 +640,11 @@ public class DistortBackgroundService extends IntentService {
             }
 
         } catch (DistortJson.DistortException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            // TODO: Base message off of response codes
+            reportError(e.getMessage());
             Log.e("FETCH-MESSAGES", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
         } catch (IOException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            reportError(e.getMessage());
             Log.e("FETCH-MESSAGES", e.getMessage());
         }
         return existingMessages;
@@ -686,13 +688,12 @@ public class DistortBackgroundService extends IntentService {
             intent.setAction(ACTION_FETCH_GROUPS);
             LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
         } catch (DistortJson.DistortException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            // TODO: Base message off of response codes
+            reportError(e.getMessage());
             Log.e("FETCH-GROUPS", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
 
         } catch (IOException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            reportError(e.getMessage());
             Log.e("FETCH-GROUPS", e.getMessage());
         }
         return groups;
@@ -740,13 +741,12 @@ public class DistortBackgroundService extends IntentService {
             intent.setAction(ACTION_FETCH_CONVERSATIONS);
             LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
         } catch (DistortJson.DistortException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            // TODO: Base message off of response codes
+            reportError(e.getMessage());
             Log.e("FETCH-CONVERSATIONS", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
 
         } catch (IOException e) {
-            // TODO: Handle background errors
-            e.printStackTrace();
+            reportError(e.getMessage());
             Log.e("FETCH-CONVERSATIONS", e.getMessage());
         }
         return conversations;

@@ -1,15 +1,11 @@
 package com.unix4all.rypi.distort;
 
 import android.app.Activity;
-import android.content.Context;
-import android.content.Intent;
-import android.net.Uri;
+import android.graphics.drawable.GradientDrawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,7 +26,6 @@ public class TimedRemoveFragment extends DialogFragment {
 
     private TextView mTitle;
     private TextView mDescription;
-    private Button mCancelButton;
     private Button mRemoveButton;
 
     private OnFragmentFinishedListener mListener;
@@ -78,16 +73,9 @@ public class TimedRemoveFragment extends DialogFragment {
         mDescription = view.findViewById(R.id.timedRemoveDescription);
         mDescription.setText(mDescriptionString);
 
-        mCancelButton = view.findViewById(R.id.timedRemoveCancelButton);
-        mCancelButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mListener.onFragmentFinished(false,null);
-                dismiss();
-            }
-        });
         mRemoveButton = view.findViewById(R.id.timedRemoveAcceptButton);
         mRemoveButton.setEnabled(false);
+        ((GradientDrawable)mRemoveButton.getBackground()).setColor(getResources().getColor(R.color.removeButton));
         mTimedEnableTask = new TimedEnableTask(5000L);
         mTimedEnableTask.execute();
     }
@@ -103,7 +91,7 @@ public class TimedRemoveFragment extends DialogFragment {
     }
 
     public interface OnFragmentFinishedListener {
-        void onFragmentFinished(Boolean removeChoice, @Nullable Integer selectedIndex);
+        void onTimedRemoveFinished(Boolean removeChoice, @Nullable Integer selectedIndex);
     }
 
     public class TimedEnableTask extends AsyncTask<Void, Void, Boolean> {
@@ -127,7 +115,7 @@ public class TimedRemoveFragment extends DialogFragment {
                             mRemoveButton.setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
-                                    mListener.onFragmentFinished(true, mPosition);
+                                    mListener.onTimedRemoveFinished(true, mPosition);
                                     dismiss();
                                 }
                             });

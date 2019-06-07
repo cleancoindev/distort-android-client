@@ -43,6 +43,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
 
     private PeerServiceBroadcastReceiver mPeerServiceReceiver;
     private ConversationServiceBroadcastReceiver mConversationServiceReceiver;
+    private BackgroundErrorBroadcastReceiver mBackgroundErrorReceiver;
 
     private AddPeerTask mAddPeerTask;
     private RemovePeerTask mRemovePeerTask;
@@ -151,7 +152,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
     }
 
     @Override
-    public void onFragmentFinished(Boolean removeChoice, @Nullable Integer position) {
+    public void onTimedRemoveFinished(Boolean removeChoice, @Nullable Integer position) {
         if(removeChoice && position != null) {
             DistortConversation c = mConversationAdapter.getItem(position);
             mRemovePeerTask = new RemovePeerTask(this, c.getPeerId(), c.getAccountName(), position);
@@ -166,6 +167,11 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_PEERS);
         LocalBroadcastManager.getInstance(this).registerReceiver(mPeerServiceReceiver, intentFilter);
+
+        mBackgroundErrorReceiver = new BackgroundErrorBroadcastReceiver(findViewById(R.id.peerConversationsConstraintLayout), this);
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(DistortBackgroundService.BACKGROUND_ERROR);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBackgroundErrorReceiver, intentFilter);
 
         // Start fetch peers task
         DistortBackgroundService.startActionFetchPeers(getApplicationContext());
@@ -183,6 +189,7 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
     protected void onStop() {
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mPeerServiceReceiver);
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mConversationServiceReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBackgroundErrorReceiver);
         super.onStop();
     }
     public class PeerServiceBroadcastReceiver extends BroadcastReceiver {

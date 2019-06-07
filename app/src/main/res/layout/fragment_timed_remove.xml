@@ -38,24 +38,12 @@
         android:orientation="horizontal">
 
         <Button
-            android:id="@+id/timedRemoveCancelButton"
-            android:layout_width="53dp"
-            android:layout_height="32dp"
-            android:layout_weight="1"
-            android:background="@color/cancelButton"
-            android:text="@string/prompt_cancel" />
-
-        <Space
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1" />
-
-        <Button
             android:id="@+id/timedRemoveAcceptButton"
             android:layout_width="61dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:background="@color/removeButton"
+            android:background="@drawable/rounded_rectangle"
             android:text="@string/prompt_remove" />
+
     </LinearLayout>
 </LinearLayout>

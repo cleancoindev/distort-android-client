@@ -289,7 +289,7 @@ public class LoginActivity extends AppCompatActivity {
         private DistortAuthParams generateTokenFromFields() throws DistortJson.DistortException, IOException {
             DistortAuthParams authParams = new DistortAuthParams();
 
-            if(mAccount.length() > 0) {
+            if(mAccount != null && mAccount.length() > 0) {
                 authParams.setAccountName(mAccount);
             }
 

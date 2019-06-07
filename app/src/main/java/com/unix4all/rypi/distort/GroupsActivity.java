@@ -49,6 +49,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
     private GroupServiceBroadcastReceiver mGroupServiceReceiver;
     private AccountServiceBroadcastReceiver mAccountServiceReceiver;
+    private BackgroundErrorBroadcastReceiver mBackgroundErrorReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -157,7 +158,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
     }
 
     @Override
-    public void onFragmentFinished(Boolean removeChoice, @Nullable Integer groupIndex) {
+    public void onTimedRemoveFinished(Boolean removeChoice, @Nullable Integer groupIndex) {
         if(removeChoice) {
             String groupName = mGroupsAdapter.getItem(groupIndex).getName();
             mRemoveGroupTask = new RemoveGroupTask(this, groupName, groupIndex);
@@ -178,6 +179,11 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_ACCOUNT);
         LocalBroadcastManager.getInstance(this).registerReceiver(mAccountServiceReceiver, intentFilter);
 
+        mBackgroundErrorReceiver = new BackgroundErrorBroadcastReceiver(findViewById(R.id.groupConstraintLayout), this);
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(DistortBackgroundService.BACKGROUND_ERROR);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBackgroundErrorReceiver, intentFilter);
+
         DistortBackgroundService.startActionFetchAccount(getApplicationContext());
 
         super.onStart();
@@ -186,6 +192,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
     protected void onStop() {
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mGroupServiceReceiver);
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mAccountServiceReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBackgroundErrorReceiver);
         super.onStop();
     }
 
