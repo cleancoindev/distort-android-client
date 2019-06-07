@@ -49,7 +49,7 @@ public class ChangePasswordFragment extends DialogFragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        mPeerId = savedInstanceState.getString("peerId", null);
+        mPeerId = getArguments().getString("peerId", null);
 
         // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_change_password, container, false);
