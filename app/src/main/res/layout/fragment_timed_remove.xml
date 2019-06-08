@@ -43,7 +43,9 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="@drawable/rounded_rectangle"
-            android:text="@string/prompt_remove" />
+            android:enabled="false"
+            android:text="@string/prompt_remove"
+            android:textColor="@android:color/white" />
 
     </LinearLayout>
 </LinearLayout>

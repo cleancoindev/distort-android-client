@@ -82,8 +82,18 @@ public class DistortBackgroundService extends IntentService {
     }
 
     private void reportError(String errorString) {
+        if(errorString.length() == 0) {
+            return;
+        }
+
         Intent intent = new Intent();
         intent.setAction(BACKGROUND_ERROR);
+
+        // Trim and first letter uppercase
+        errorString = errorString.trim();
+        errorString = errorString.substring(0, 1).toUpperCase() + errorString.substring(1);
+
+
         intent.putExtra("error", errorString);
         LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
     }
@@ -203,7 +213,7 @@ public class DistortBackgroundService extends IntentService {
             json.endArray();
             json.close();
         } catch (Exception e) {
-            Log.e("STORED-MESSAGES", "Could not parse conversation messages file");
+            Log.w("STORED-MESSAGES", "Could not parse conversation messages file");
         }
         return messages;
     }
@@ -598,7 +608,7 @@ public class DistortBackgroundService extends IntentService {
 
             // Use group-Id + peer full-address to uniquely identify a conversation,
             // even before a message has been sent or received
-            if(activeConversation.equals(groupDatabaseId.concat(localConversation.getFullAddress()))) {
+            if(activeConversation.equals(localConversation.getUniqueLabel())) {
                 // Broadcast to messaging
                 Intent intent = new Intent();
                 intent.setAction(ACTION_FETCH_MESSAGES);
@@ -652,8 +662,6 @@ public class DistortBackgroundService extends IntentService {
 
     private HashMap<String, DistortGroup> handleActionFetchGroups() {
         HashMap<String, DistortGroup> groups = new HashMap<>();
-        DistortAccount account = getLocalAccount(this);
-        @Nullable String activeGroupId = account.getActiveGroupId();
 
         // Attempt authentication against a network service.
         try {
@@ -674,9 +682,6 @@ public class DistortBackgroundService extends IntentService {
             while(response.hasNext()) {
                 DistortGroup g = DistortGroup.readJson(response);
 
-                if(g.getId().equals(activeGroupId)) {
-                    g.setIsActive(true);
-                }
                 groups.put(g.getId(), g);
             }
             response.endArray();
@@ -781,8 +786,8 @@ public class DistortBackgroundService extends IntentService {
 
     private void handleActionScheduleSecondaryServices() {
         try {
-            handleActionFetchAccount();
             handleActionFetchGroups();
+            handleActionFetchAccount();
             handleActionFetchPeers();
         } catch(Exception e) {
             e.printStackTrace();

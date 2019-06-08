@@ -10,6 +10,6 @@
     <color name="messageCancelled">#ffdcdc</color>
     <color name="messageReceived">#d7e7ff</color>
     <color name="removeButton">#931f1f</color>
-    <color name="removeButtonDisabled">#914545</color>
+    <color name="removeButtonDisabled">#c4b2b2</color>
     <color name="cancelButton">#c4c1c1</color>
 </resources>

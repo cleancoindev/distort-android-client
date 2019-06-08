@@ -141,4 +141,6 @@
     <string name="label_account_id">Account Full ID</string>
     <string name="text_place_holder">PLACE HOLDER</string>
     <string name="error_invalid_barcode">Invalid account ID</string>
+    <string name="error_resolve_address">Failed to resolve homeserver address</string>
+    <string name="icon_colours_preferences_keys">com.unix4all.rypi.distort.ICON_COLOURS</string>
 </resources>

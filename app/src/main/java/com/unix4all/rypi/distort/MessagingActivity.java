@@ -51,6 +51,7 @@ public class MessagingActivity extends AppCompatActivity {
     // Group we are messaging on
     private DistortGroup mGroup;
     private MessageServiceBroadcastReceiver mServiceReceiver;
+    private BackgroundErrorBroadcastReceiver mBackgroundErrorReceiver;
     private SendMessageTask mSendMessageTask;
 
     // Bottom layout
@@ -79,32 +80,41 @@ public class MessagingActivity extends AppCompatActivity {
         mIcon = findViewById(R.id.messagesIcon);
         mName = findViewById(R.id.messagesName);
         mFullAddress = findViewById(R.id.messagesDetails);
-        ArrayList<DistortMessage> conversationMessages = new ArrayList<>();
+
         Bundle bundle = getIntent().getExtras();
         if(bundle != null) {
             mIcon.setText(bundle.getString("icon"));
             ((GradientDrawable) mIcon.getBackground()).setColor(bundle.getInt("colorIcon"));
 
-            // Setup peer info
-            mPeerId = bundle.getString("peerId");
-            mAccountName = bundle.getString("accountame");
-            mFullAddressString = DistortPeer.toFullAddress(mPeerId, mAccountName);
-            mFullAddress.setText(mFullAddressString);
-            mPeer = getPeerFromLocal(mFullAddressString);
-
-            mFriendlyName = bundle.getString("friendlyName");
-            if(mFriendlyName == null) {
-                mFriendlyName = mPeer.getFriendlyName();
-                Log.d("ACTIVITY-MESSAGES", "Set nickname: " + mPeer.getNickname());
-            }
-
+            // Find group
             String groupDatabaseId = bundle.getString("groupDatabaseId");
             mGroup = getGroupFromLocal(groupDatabaseId);
 
+            // Setup peer info and get peer object if exists
+            mPeerId = bundle.getString("peerId");
+            mAccountName = bundle.getString("accountame");
+            mFullAddressString = DistortPeer.toFullAddress(mPeerId, mAccountName);
+            mPeer = getPeerFromLocal(mFullAddressString);
+
+            // Get conversation object if exists
             String conversationId = bundle.getString("conversationDatabaseId");
             if(conversationId != null && !conversationId.isEmpty()) {
                 mConversation = getConversationFromLocal(conversationId);
             }
+
+            mFriendlyName = bundle.getString("nickname");
+            if(mFriendlyName == null) {
+                if(mPeer != null) {
+                    mFriendlyName = mPeer.getFriendlyName();
+                } else if(mConversation != null) {
+                    mFriendlyName = mConversation.getFriendlyName();
+                } else {
+                    mFriendlyName = mFullAddressString;
+                }
+            }
+
+            // Set text fields
+            mFullAddress.setText(mFullAddressString);
             mName.setText(mFriendlyName);
         } else {
             throw new RuntimeException("No bundle given to PeerConversationActivity");
@@ -114,7 +124,7 @@ public class MessagingActivity extends AppCompatActivity {
         mMessagesView = (RecyclerView) findViewById(R.id.messagesView);
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(MessagingActivity.this, LinearLayoutManager.VERTICAL, false);
         mMessagesView.setLayoutManager(linearLayoutManager);
-        mMessagesAdapter = new MessageAdapter(this, conversationMessages, mFriendlyName);
+        mMessagesAdapter = new MessageAdapter(this, null, mFriendlyName);
         mMessagesView.setAdapter(mMessagesAdapter);
 
         // Setup other fields
@@ -150,8 +160,13 @@ public class MessagingActivity extends AppCompatActivity {
     // Handle successful retrieval of groups
     @Override
     protected void onStart() {
-        mServiceReceiver = new MessagingActivity.MessageServiceBroadcastReceiver();
+        mBackgroundErrorReceiver = new BackgroundErrorBroadcastReceiver(findViewById(R.id.groupConstraintLayout), this);
         IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(DistortBackgroundService.BACKGROUND_ERROR);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBackgroundErrorReceiver, intentFilter);
+
+        mServiceReceiver = new MessagingActivity.MessageServiceBroadcastReceiver();
+        intentFilter = new IntentFilter();
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_MESSAGES);
         LocalBroadcastManager.getInstance(this).registerReceiver(mServiceReceiver, intentFilter);
 
@@ -160,6 +175,7 @@ public class MessagingActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mServiceReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBackgroundErrorReceiver);
         super.onStop();
     }
     @Override
@@ -170,7 +186,7 @@ public class MessagingActivity extends AppCompatActivity {
 
         // Use group-Id + peer full-address to uniquely identify a conversation,
         // even before a message has been sent or received
-        preferenceEditor.putString("activeConversation", mGroup.getId().concat(mFullAddressString));
+        preferenceEditor.putString("activeConversation", mGroup.getId() + ":" + mFullAddressString);
         preferenceEditor.apply();
 
         if(mConversation != null) {
@@ -184,6 +200,8 @@ public class MessagingActivity extends AppCompatActivity {
             if(position > 0) {
                 mMessagesView.smoothScrollToPosition(position);
             }
+
+            DistortBackgroundService.startActionFetchMessages(this, mConversation.getId());
         }
 
         super.onResume();
@@ -194,7 +212,7 @@ public class MessagingActivity extends AppCompatActivity {
                 getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
         SharedPreferences.Editor preferenceEditor = sharedPref.edit();
         preferenceEditor.putString("activeConversation", null);
-        preferenceEditor.commit();
+        preferenceEditor.apply();
 
         super.onPause();
     }

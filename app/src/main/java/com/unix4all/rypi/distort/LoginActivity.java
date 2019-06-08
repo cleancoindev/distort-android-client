@@ -343,7 +343,8 @@ public class LoginActivity extends AppCompatActivity {
                     try {
                         authParams = generateTokenFromFields();
                     } catch (MalformedURLException e) {
-                        mErrorString = getString(R.string.error_invalid_address);
+                        // Since we assured URL is valid with regex, only occurs if DNS resolution fails
+                        mErrorString = getString(R.string.error_resolve_address);
                         mErrorCode = -1;
                         return false;
                     } catch (DistortJson.DistortException e) {
@@ -405,6 +406,12 @@ public class LoginActivity extends AppCompatActivity {
                 }
 
                 return false;
+            } catch (MalformedURLException e) {
+                // Since we assured URL is valid with regex, only occurs if DNS resolution fails
+                mErrorString = getString(R.string.error_resolve_address);
+                mErrorCode = -1;
+
+                return false;
             } catch (IOException e) {
                 mErrorString = e.getMessage();
                 mErrorCode = -1;
@@ -456,6 +463,10 @@ public class LoginActivity extends AppCompatActivity {
                 intent = new Intent(mContext, GroupsActivity.class);
                 startActivity(intent);
             } else {
+                // To first letter uppercase
+                mErrorString = mErrorString.substring(0, 1).toUpperCase() + mErrorString.substring(1);
+
+                // Display error
                 if(mErrorCode == -1) {
                     mHomeserverView.setError(mErrorString);
                     mHomeserverView.requestFocus();

@@ -2,6 +2,7 @@ package com.unix4all.rypi.distort;
 
 import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
+import android.support.annotation.Nullable;
 import android.support.constraint.ConstraintLayout;
 import android.support.v7.widget.RecyclerView;
 import android.view.Gravity;
@@ -20,10 +21,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
     private ArrayList<DistortMessage> mMessagesData;
     private String mFriendlyName;
 
-    public MessageAdapter(Context context, ArrayList<DistortMessage> messages, String friendlyName) {
+    public MessageAdapter(Context context, @Nullable ArrayList<DistortMessage> messages, String friendlyName) {
         mContext = context;
         mMessagesData = messages;
-        if(mMessagesData == null) {
+        if(messages == null) {
             mMessagesData = new ArrayList<>();
         }
         mFriendlyName = friendlyName;

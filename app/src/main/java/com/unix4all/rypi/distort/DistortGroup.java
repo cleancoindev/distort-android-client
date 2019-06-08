@@ -12,13 +12,11 @@ public class DistortGroup {
     private final String mId;
     private String mName;
     private Integer mSubgroupIndex;
-    private @Nullable Boolean mIsActive;
 
-    DistortGroup(String name, String id, Integer subgroupIndex, @Nullable Boolean isActive) {
+    DistortGroup(String name, String id, Integer subgroupIndex) {
         mName = name;
         mId = id;
         mSubgroupIndex = subgroupIndex;
-        mIsActive = isActive;
     }
 
     // Getters
@@ -31,9 +29,6 @@ public class DistortGroup {
     public Integer getSubgroupIndex() {
         return mSubgroupIndex;
     }
-    public @Nullable Boolean getIsActive() {
-        return mIsActive;
-    }
 
     // Setters
     public void setName(String name) {
@@ -42,18 +37,12 @@ public class DistortGroup {
     public void setSubgroupIndex(Integer index) {
         mSubgroupIndex = index;
     }
-    public void setIsActive(@Nullable Boolean isActive) {
-        if(isActive != null) {
-            mIsActive = isActive;
-        }
-    }
 
     // Static parsing function
     static DistortGroup readJson(JsonReader json) throws IOException {
         String name = null;
         String id = null;
         Integer subgroupIndex = null;
-        Boolean isActive = null;
 
         // Read all fields from group
         json.beginObject();
@@ -66,8 +55,6 @@ public class DistortGroup {
                 id = json.nextString();
             } else if(key.equals("subgroupIndex")) {
                 subgroupIndex = json.nextInt();
-            } else if(key.equals("isActive")) {
-                isActive = json.nextBoolean();
             } else {
                 json.skipValue();
             }
@@ -76,7 +63,7 @@ public class DistortGroup {
 
         if(name != null && id != null && subgroupIndex != null) {
             Log.d("READ-GROUP", "Group ( " + name + "," + subgroupIndex + "," + id + " )");
-            return new DistortGroup(name, id, subgroupIndex, isActive);
+            return new DistortGroup(name, id, subgroupIndex);
         } else {
             throw new IOException();
         }
@@ -89,9 +76,6 @@ public class DistortGroup {
         json.name("name").value(mName);
         json.name("_id").value(mId);
         json.name("subgroupIndex").value(mSubgroupIndex);
-        if(mIsActive != null) {
-            json.name("isActive").value(mIsActive);
-        }
         json.endObject();
     }
 }

@@ -37,7 +37,7 @@
         android:layout_marginStart="8dp"
         android:layout_marginLeft="10dp"
         android:layout_marginTop="8dp"
-        android:text="TextView"
+        android:text="@string/text_place_holder"
         android:textColor="@android:color/background_light"
         android:textSize="18sp"
         android:textStyle="bold"
@@ -50,7 +50,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginLeft="10dp"
-        android:text="TextView"
+        android:text="@string/text_place_holder"
         android:textColor="@android:color/background_light"
         android:textSize="10sp"
         app:layout_constraintBottom_toBottomOf="@+id/messagesIcon"
@@ -67,6 +67,7 @@
             android:id="@+id/messagesView"
             android:layout_width="match_parent"
             android:layout_height="0dp"
+            android:background="#E3ECEC"
             app:layout_constraintBottom_toTopOf="@+id/messageEdit"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -76,6 +77,9 @@
             android:id="@+id/messageEdit"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginLeft="8dp"
+            android:layout_marginTop="16dp"
             android:layout_marginEnd="8dp"
             android:layout_marginRight="8dp"
             android:layout_marginBottom="16dp"
@@ -85,21 +89,22 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/sendMessageView"
             app:layout_constraintHorizontal_bias="1.0"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/messagesView" />
 
         <TextView
             android:id="@+id/sendMessageView"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_marginRight="5dp"
-            android:layout_marginBottom="10dp"
             android:background="@drawable/green_send_circle"
             android:drawableTop="@android:drawable/ic_menu_send"
             android:paddingLeft="3dp"
             android:paddingTop="2dp"
             android:text="TextView"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintBottom_toBottomOf="@+id/messageEdit"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/messageEdit" />
 
     </android.support.constraint.ConstraintLayout>
 

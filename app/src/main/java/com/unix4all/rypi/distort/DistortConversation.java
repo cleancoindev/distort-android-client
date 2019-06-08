@@ -17,25 +17,13 @@ public class DistortConversation {
     private final String mGroupId;
     private String mPeerId;
     private String mAccountName;
-    private @Nullable String mFriendlyName;
+    private @Nullable String mNickname;
     private Integer mHeight;
-    private Date mLatestStatusChangeDate;
+    private @Nullable Date mLatestStatusChangeDate;
 
     protected static final SimpleDateFormat mongoDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
 
-    DistortConversation(@Nullable String id, String groupId, String peerId, String accountName, Integer height, String jsLatestChangeDate) {
-        mId = id;
-        mGroupId = groupId;
-        mPeerId = peerId;
-        mAccountName = accountName;
-        mHeight = height;
-        try {
-            mLatestStatusChangeDate = mongoDateFormat.parse(jsLatestChangeDate);
-        } catch (ParseException e) {
-            mLatestStatusChangeDate = new Date(0);
-        }
-    }
-    DistortConversation(@Nullable String id, String groupId, String peerId, String accountName, Integer height, Date latestChangeDate) {
+    DistortConversation(@Nullable String id, String groupId, String peerId, String accountName, Integer height, @Nullable Date latestChangeDate) {
         mId = id;
         mGroupId = groupId;
         mPeerId = peerId;
@@ -61,29 +49,30 @@ public class DistortConversation {
         return mHeight;
     }
     public String getFriendlyName() {
-        if(mFriendlyName != null && !mFriendlyName.isEmpty()) {
-            return mFriendlyName;
+        if(mNickname != null && !mNickname.isEmpty()) {
+            return mNickname;
+        } else if(!mAccountName.isEmpty() && !mAccountName.equals("root")) {
+            return mAccountName;
+        } else {
+            return getFullAddress();
         }
-        if(mAccountName == null || mAccountName.isEmpty() || mAccountName.equals("root")) {
-            return mPeerId;
-        }
-        return mAccountName;
     }
-    public @Nullable String getPlainFriendlyName() {
-        return mFriendlyName;
+    public @Nullable String getNickname() {
+        return mNickname;
     }
     public String getFullAddress() {
         return DistortPeer.toFullAddress(mPeerId, mAccountName);
     }
-    public Date getLatestStatusChangeDate() {
+    public @Nullable Date getLatestStatusChangeDate() {
         return mLatestStatusChangeDate;
+    }
+    public String getUniqueLabel() {
+        return mGroupId + ":" + getFullAddress();
     }
 
     // Setters
-    public void setId(@Nullable String id) {
-        if(id != null) {
-            mId = id;
-        }
+    public void setId(String id) {
+        mId = id;
     }
     public void setPeerId(String peerId) {
         mPeerId = peerId;
@@ -91,9 +80,9 @@ public class DistortConversation {
     public void setAccountName(String accountName) {
         mAccountName = accountName;
     }
-    public void setFriendlyName(@Nullable String friendlyName) {
+    public void setNickname(@Nullable String friendlyName) {
         if(friendlyName != null) {
-            mFriendlyName = friendlyName;
+            mNickname = friendlyName;
         }
     }
     public void setHeight(Integer height) {
@@ -101,13 +90,6 @@ public class DistortConversation {
     }
     public void setLatestStatusChangeDate(Date latestStatusChangeDate) {
         mLatestStatusChangeDate = latestStatusChangeDate;
-    }
-    public void setLatestStatusChangeDate(String jsLatestChangeDate) {
-        try {
-            mLatestStatusChangeDate = mongoDateFormat.parse(jsLatestChangeDate);
-        } catch (ParseException e) {
-            mLatestStatusChangeDate = new Date(0);
-        }
     }
 
     // Static parsing function

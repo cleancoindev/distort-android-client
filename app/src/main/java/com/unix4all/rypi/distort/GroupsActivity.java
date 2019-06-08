@@ -77,28 +77,8 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         mGroupsView.setLayoutManager(linearLayoutManager);
         mGroupsView.addItemDecoration(new DividerItemDecoration(GroupsActivity.this, DividerItemDecoration.VERTICAL));
 
-        // Determine account
-        String activeGroupId = null;
-        mAccount = DistortBackgroundService.getLocalAccount(this);
-        if(mAccount != null) {
-            activeGroupId = mAccount.getActiveGroupId();
-        }
-
         // Prepare for datasets
-        HashMap<String, DistortGroup> groupSet = DistortBackgroundService.getLocalGroups(this);
-        ArrayList<DistortGroup> groups = new ArrayList<DistortGroup>();
-        for(Map.Entry<String, DistortGroup> groupEntry : groupSet.entrySet()) {
-            DistortGroup group = groupEntry.getValue();
-
-            // Set if group is active
-            if(group.getId().equals(activeGroupId)) {
-                group.setIsActive(true);
-            }
-
-            // Add group
-            groups.add(group);
-        }
-        mGroupsAdapter = new GroupAdapter(this, groups);
+        mGroupsAdapter = new GroupAdapter(this, new ArrayList<DistortGroup>(), null);
         mGroupsView.setAdapter(mGroupsAdapter);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -174,8 +154,13 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
     // Handle successful retrieval of groups
     @Override
     protected void onStart() {
-        mGroupServiceReceiver = new GroupsActivity.GroupServiceBroadcastReceiver();
+        mBackgroundErrorReceiver = new BackgroundErrorBroadcastReceiver(findViewById(R.id.groupConstraintLayout), this);
         IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(DistortBackgroundService.BACKGROUND_ERROR);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBackgroundErrorReceiver, intentFilter);
+
+        mGroupServiceReceiver = new GroupsActivity.GroupServiceBroadcastReceiver();
+        intentFilter = new IntentFilter();
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_GROUPS);
         LocalBroadcastManager.getInstance(this).registerReceiver(mGroupServiceReceiver, intentFilter);
 
@@ -184,12 +169,8 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         intentFilter.addAction(DistortBackgroundService.ACTION_FETCH_ACCOUNT);
         LocalBroadcastManager.getInstance(this).registerReceiver(mAccountServiceReceiver, intentFilter);
 
-        mBackgroundErrorReceiver = new BackgroundErrorBroadcastReceiver(findViewById(R.id.groupConstraintLayout), this);
-        intentFilter = new IntentFilter();
-        intentFilter.addAction(DistortBackgroundService.BACKGROUND_ERROR);
-        LocalBroadcastManager.getInstance(this).registerReceiver(mBackgroundErrorReceiver, intentFilter);
-
-        DistortBackgroundService.startActionFetchAccount(getApplicationContext());
+        // Fetch groups and account
+        DistortBackgroundService.startActionScheduleSecondaryServices(getApplicationContext());
 
         super.onStart();
     }
@@ -220,30 +201,12 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         @Override
         public void onReceive(Context context, Intent intent) {
             final Context appContext = getApplicationContext();
-            final DistortAccount originalAccount = mAccount;
             final DistortAccount account = DistortBackgroundService.getLocalAccount(appContext);
-
-            final HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(appContext);
-            final boolean activeGroupIsSet = account.getActiveGroupId() != null && !account.getActiveGroupId().isEmpty();
-            final boolean activeGroupWasSet = originalAccount.getActiveGroupId() != null && !originalAccount.getActiveGroupId().isEmpty();
 
             mActivity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    if (activeGroupWasSet) {
-                        DistortGroup originalGroup = allGroups.get(originalAccount.getActiveGroupId());
-                        if(originalGroup != null) {
-                            originalGroup.setIsActive(false);
-                            mGroupsAdapter.addOrUpdateGroup(originalGroup);
-                        }
-                    }
-                    if (activeGroupIsSet) {
-                        DistortGroup group = allGroups.get(account.getActiveGroupId());
-                        if(group != null) {
-                            group.setIsActive(true);
-                            mGroupsAdapter.addOrUpdateGroup(group);
-                        }
-                    }
+                    mGroupsAdapter.updateActiveGroup(account.getActiveGroupId());
                 }
             });
             mAccount = account;
@@ -297,7 +260,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
                 // If new group is the only group, then it will be active
                 if(mGroupsAdapter.getItemCount() == 0) {
-                    newGroup.setIsActive(true);
+                    mGroupsAdapter.updateActiveGroup(newGroup.getId());
                 }
 
                 mActivity.runOnUiThread(new Runnable() {

@@ -107,7 +107,7 @@ public class TimedRemoveFragment extends DialogFragment {
             // Attempt authentication against a network service.
             try {
                 Thread.sleep(mMillisecondDelay);
-                if(mRemoveButton != null) {
+                if(mRemoveButton != null && getActivity() != null) {
                     mActivity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
