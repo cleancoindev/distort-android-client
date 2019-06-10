@@ -75,7 +75,6 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
                     mIntent.putExtra("conversationDatabaseId", conversation.getId());
                 }
                 mIntent.putExtra("icon", holder.mIcon.getText().toString());
-                mIntent.putExtra("colorIcon", finalColour);
                 mContext.startActivity(mIntent);
             }
         });

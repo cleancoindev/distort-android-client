@@ -32,6 +32,17 @@ public class DistortConversation {
         mLatestStatusChangeDate = latestChangeDate;
     }
 
+    public static String toUniqueLabel(String groupId, String peerFullAddress) {
+        return groupId + ":" + peerFullAddress;
+    }
+    public static String toUniqueLabel(String groupId, String peerFullAddress, String[] args) {
+        String r = groupId + ":" + peerFullAddress;
+        for(int i = 0; i < args.length; i++) {
+            r += ":" + args[i];
+        }
+        return r;
+    }
+
     // Getters
     public @Nullable String getId() {
         return mId;
@@ -67,7 +78,7 @@ public class DistortConversation {
         return mLatestStatusChangeDate;
     }
     public String getUniqueLabel() {
-        return mGroupId + ":" + getFullAddress();
+        return toUniqueLabel(mGroupId, getFullAddress());
     }
 
     // Setters

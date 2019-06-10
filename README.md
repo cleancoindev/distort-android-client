@@ -15,13 +15,27 @@ if the user manually installs it to their Android device.
 ### Images
 * #### Login
     <img src="images/login.png" width="300" height="533" />
+<br>
+<br>
 * #### Messaging 
     <img src="images/messaging.png" width="300" height="533" />
+<br>
+<br>
 * #### Notifications
     <img src="images/notifications.png" width="300" height="183" />
+<br>
+<br>
+* #### Remove Peer (Timed Wait)
+    <img src="images/remove_peer_disabled.png" width="300" height="533" />
+<br>
+<br>
 * #### Leave Group
     <img src="images/leave_group.png" width="300" height="533" />
+<br>
+<br>
 * #### Display Account as QR Code
     <img src="images/display_qr.png" width="300" height="533" />
+<br>
+<br>
 * #### Read Peer Accounts as QR Codes
     <img src="images/read_qr.png" width="300" height="533" />

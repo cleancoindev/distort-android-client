@@ -97,7 +97,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
             mMessagesData.add(i, msg);
             notifyItemInserted(i);
         } else {
-            if(mMessagesData.get(i).getType().equals(DistortMessage.TYPE_IN)) {
+            if(msg.equals(DistortMessage.TYPE_IN)) {
                 InMessage inMsg = (InMessage) msg;
                 ((InMessage)mMessagesData.get(i)).setVerified(inMsg.getVerified());
             } else {

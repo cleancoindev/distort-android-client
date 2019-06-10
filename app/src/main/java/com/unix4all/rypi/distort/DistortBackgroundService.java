@@ -2,6 +2,7 @@ package com.unix4all.rypi.distort;
 
 import android.app.IntentService;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
@@ -11,6 +12,8 @@ import android.graphics.Color;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.support.annotation.Nullable;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.JsonReader;
 import android.util.JsonToken;
@@ -34,6 +37,10 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.HttpsURLConnection;
+
+import static android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK;
+import static android.content.Intent.FLAG_ACTIVITY_NEW_DOCUMENT;
+import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 
 /**
  * An {@link IntentService} subclass for handling asynchronous task requests in
@@ -185,6 +192,7 @@ public class DistortBackgroundService extends IntentService {
     }
     public static ArrayList<DistortMessage> getLocalConversationMessages(Context context, String conversationDatabaseId) {
         ArrayList<DistortMessage> messages = new ArrayList<>();
+        HashMap<Integer, DistortMessage> indexMap = new HashMap<>();
         if(conversationDatabaseId == null || conversationDatabaseId.isEmpty()) {
             return messages;
         }
@@ -207,7 +215,7 @@ public class DistortBackgroundService extends IntentService {
                 } else {
                     m = OutMessage.readJson(json);
                 }
-                messages.add(m);
+                indexMap.put(m.getIndex(), m);
                 json.endObject();
             }
             json.endArray();
@@ -215,6 +223,15 @@ public class DistortBackgroundService extends IntentService {
         } catch (Exception e) {
             Log.w("STORED-MESSAGES", "Could not parse conversation messages file");
         }
+
+        for(int i = 0; i < indexMap.size(); i++) {
+            if(indexMap.containsKey(i)) {
+                messages.add(indexMap.get(i));
+            } else {
+                Log.e("STORED-MESSAGES", "Missing message index: " + i);
+            }
+        }
+
         return messages;
     }
 
@@ -480,20 +497,20 @@ public class DistortBackgroundService extends IntentService {
     /**
      * Handle action fetch messages in the provided background thread.
      */
-    private ArrayList<DistortMessage> handleActionFetchConversationMessages(String conversationDatabaseId) {
+    private ArrayList<DistortMessage> handleActionFetchConversationMessages(String conversationId) {
         // Load conversations from storage
         HashMap<String, DistortConversation> conversations = getLocalConversations(this);
-        final DistortConversation localConversation = conversations.get(conversationDatabaseId);
+        final DistortConversation localConversation = conversations.get(conversationId);
 
         // Store previously retrieved messages to append to
         ArrayList<DistortMessage> existingMessages = new ArrayList<>();
 
         // Find existing copy of conversation in local storage
-        Integer existingHeight = 0;
+        Integer existingHeight;
         Integer startIndex;
         if(localConversation != null) {
             // Get known conversation messages and determine earliest message with volatile state (enqueued)
-            ArrayList<DistortMessage> storedMessages = getLocalConversationMessages(this, conversationDatabaseId);
+            ArrayList<DistortMessage> storedMessages = getLocalConversationMessages(this, conversationId);
             if(storedMessages.size() == 0) {
                 startIndex = 0;
                 existingHeight = 0;
@@ -513,10 +530,16 @@ public class DistortBackgroundService extends IntentService {
                 }
             }
 
-            // Found correct end of known messages below starting-index, append to list
+            // Found correct end of known-messages below starting-index, append to list
             existingMessages = new ArrayList<>(storedMessages.subList(0, startIndex));
         } else {
             return new ArrayList<>();
+        }
+
+        // See if conversation has an associated peer
+        DistortPeer peer = getLocalPeers(this).get(localConversation.getFullAddress());
+        if(peer != null) {
+            localConversation.setNickname(peer.getNickname());
         }
 
         // Load groups from storage
@@ -557,16 +580,13 @@ public class DistortBackgroundService extends IntentService {
             // Read all messages in messages and out messages
             ArrayList<InMessage> inMessages = new ArrayList<>();
             ArrayList<OutMessage> outMessages = new ArrayList<>();
-            String conversationId = null;
             response.beginObject();
             while (response.hasNext()) {
                 String key = response.nextName();
                 if (key.equals("in")) {
-                    inMessages = InMessage.readArrayJsonForConversation(response, conversationDatabaseId);
+                    inMessages = InMessage.readArrayJsonForConversation(response, conversationId);
                 } else if (key.equals("out")) {
-                    outMessages = OutMessage.readArrayJsonForConversation(response, conversationDatabaseId);
-                } else if (key.equals("conversation")) {
-                    conversationId = response.nextString();
+                    outMessages = OutMessage.readArrayJsonForConversation(response, conversationId);
                 } else {
                     response.skipValue();
                 }
@@ -575,32 +595,42 @@ public class DistortBackgroundService extends IntentService {
             response.close();
 
             // Begin creating a consolidated and sorted list of new messages
-            final DistortMessage allMessages[] = new DistortMessage[inMessages.size() + outMessages.size()];
+            final DistortMessage receivedMessages[] = new DistortMessage[inMessages.size() + outMessages.size()];
             for (int inIndex = 0; inIndex < inMessages.size(); inIndex++) {
                 DistortMessage m = (DistortMessage) inMessages.get(inIndex);
-                allMessages[m.getIndex() - startIndex] = m;
+                receivedMessages[m.getIndex() - startIndex] = m;
             }
             for (int outIndex = 0; outIndex < outMessages.size(); outIndex++) {
                 DistortMessage m = (DistortMessage) outMessages.get(outIndex);
-                allMessages[m.getIndex() - startIndex] = m;
+                receivedMessages[m.getIndex() - startIndex] = m;
             }
 
-            // Append to pre-discovered messages and determine if received a new message
-            boolean newMessages = false;
-            for(int i = 0; i < allMessages.length; i++) {
-                // If we received a message greater than the previous highest index and was an in message, notify
-                if(allMessages[i].getIndex() >= existingHeight && allMessages[i].getType().equals(DistortMessage.TYPE_IN)) {
-                    newMessages = true;
+            // Append to pre-discovered messages and determine if there are updates to notify
+            boolean notifyOfMessage = false;
+            ArrayList<Integer> updatedMessages = new ArrayList<>();
+            for(DistortMessage dm : receivedMessages) {
+                int index = dm.getIndex();
+
+                // Determine if message is new or old
+                if(index < existingHeight) {
+                    // Message status may have changed since last updated
+                    updatedMessages.add(index);
+                } else {
+                    // Message is guaranteed to be new to client, add to messages that will be refreshed
+                    updatedMessages.add(index);
+
+                    // Only notify activity if this is an incoming message
+                    if(dm.getType().equals(DistortMessage.TYPE_IN)) {
+                        notifyOfMessage = true;
+                    }
                 }
 
-                // Add sorted messages to list of all messages
-                existingMessages.add(allMessages[i]);
+                // Add sorted message to list of all messages
+                existingMessages.add(dm);
             }
-            if(conversationId != null) {
-                saveConversationMessagesToLocal(conversationId, existingMessages);
-            } else {
-                return existingMessages;
-            }
+
+            // Save messages
+            saveConversationMessagesToLocal(conversationId, existingMessages);
 
             // Let know about the successful service
             SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
@@ -612,40 +642,74 @@ public class DistortBackgroundService extends IntentService {
                 // Broadcast to messaging
                 Intent intent = new Intent();
                 intent.setAction(ACTION_FETCH_MESSAGES);
-                intent.putExtra("conversationDatabaseId", conversationDatabaseId);
+                intent.putExtra("conversationDatabaseId", conversationId);
+
+                if(updatedMessages.size() > 0) {
+                    // Store updated messages to string for fast refreshes
+                    String updatedMessagesString = "";
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(updatedMessages.get(0));
+                    for (int i = 1; i < updatedMessages.size(); i++) {
+                        sb.append(":" + updatedMessages.get(i));
+                    }
+                    updatedMessagesString = sb.toString();
+                    intent.putExtra("updatedMessages", updatedMessagesString);
+                }
+
                 LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-            } else if(newMessages) {
+            } else if(notifyOfMessage) {
                 // Received a previously unknown in-message, notify
                 Intent intent = new Intent(context, MessagingActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 
-                // Prepare to launch messaging activity
+                // Pass arguments to launching activity
                 intent.putExtra("icon", localConversation.getFriendlyName().substring(0, 1));
-                Random mRandom = new Random();
-                final int colour = Color.argb(255, mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256));
-
-                intent.putExtra("colorIcon", colour);
                 intent.putExtra("peerId", localConversation.getPeerId());
                 intent.putExtra("accountName", localConversation.getAccountName());
                 intent.putExtra("groupDatabaseId", groupDatabaseId);
-                intent.putExtra("conversationDatabaseId", conversationDatabaseId);
-                PendingIntent pIntent = PendingIntent.getActivity(context, 0, intent, 0);
+                intent.putExtra("conversationDatabaseId", conversationId);
+                PendingIntent pIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 
+                // Notification values
                 String title = getString(R.string.notification_messages_title);
                 String text = getString(R.string.notification_messages_text);
                 Uri ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-                Notification notification = new Notification.Builder(context)
-                        .setContentTitle(title)
-                        .setContentText(text)
-                        .setSound(ringtoneUri)
-                        .setSmallIcon(R.drawable.ic_message_notification)
-                        .setContentIntent(pIntent)
-                        .build();
+
+                // Build notification with compatibility
+                // https://stackoverflow.com/questions/46990995/on-android-8-1-api-27-notification-does-not-display
+                NotificationCompat.Builder builder;
                 NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    int importance = NotificationManager.IMPORTANCE_HIGH;
+                    NotificationChannel notificationChannel = notificationManager.getNotificationChannel(conversationId);
+                    if (notificationChannel == null) {
+                        notificationChannel = new NotificationChannel(conversationId, localConversation.getFullAddress(), importance);
+                        notificationChannel.setLightColor(Color.GREEN);
+                        notificationChannel.enableVibration(true);
+                        notificationManager.createNotificationChannel(notificationChannel);
+                    }
+                    builder = new NotificationCompat.Builder(context, conversationId);
+                    builder.setContentTitle(title)                            // required
+                            .setSmallIcon(R.drawable.ic_message_notification)   // required
+                            .setContentText(text) // required
+                            .setContentIntent(pIntent)
+                            .setAutoCancel(true)
+                            .setSound(ringtoneUri)
+                            .setLights(0xFF00FF00, 500, 1500)
+                            .setVibrate(new long[]{100, 300, 300, 400});
+                } else {
+                    builder = new NotificationCompat.Builder(context, conversationId);
+                    builder.setContentTitle(title)                            // required
+                            .setSmallIcon(R.drawable.ic_message_notification)   // required
+                            .setContentText(text) // required
+                            .setContentIntent(pIntent)
+                            .setAutoCancel(true)
+                            .setSound(ringtoneUri)
+                            .setLights(0xFF00FF00, 500, 1500)
+                            .setVibrate(new long[]{100, 300, 300, 400});
+                }
 
-                // hide the notification after its selected and open activity
-                notification.flags |= Notification.FLAG_AUTO_CANCEL;
-
+                Notification notification = builder.build();
                 notificationManager.notify(notificationId.getAndIncrement(), notification);
             }
 

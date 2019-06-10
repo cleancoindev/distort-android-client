@@ -26,6 +26,7 @@ public class TimedRemoveFragment extends DialogFragment {
 
     private TextView mTitle;
     private TextView mDescription;
+    private TextView mHint;
     private Button mRemoveButton;
 
     private OnFragmentFinishedListener mListener;
@@ -70,13 +71,15 @@ public class TimedRemoveFragment extends DialogFragment {
         mTitle = view.findViewById(R.id.timedRemoveTitle);
         mTitle.setText(mTitleString);
 
+        mHint = view.findViewById(R.id.timedRemoveHint);
+
         mDescription = view.findViewById(R.id.timedRemoveDescription);
         mDescription.setText(mDescriptionString);
 
         mRemoveButton = view.findViewById(R.id.timedRemoveAcceptButton);
         mRemoveButton.setEnabled(false);
         ((GradientDrawable)mRemoveButton.getBackground()).setColor(getResources().getColor(R.color.removeButtonDisabled));
-        mTimedEnableTask = new TimedEnableTask(5000L);
+        mTimedEnableTask = new TimedEnableTask(3000L);
         mTimedEnableTask.execute();
     }
 
@@ -114,6 +117,8 @@ public class TimedRemoveFragment extends DialogFragment {
                             // Enable remove button
                             mRemoveButton.setEnabled(true);
                             ((GradientDrawable)mRemoveButton.getBackground()).setColor(getResources().getColor(R.color.removeButton));
+
+                            mHint.setText("");
 
                             mRemoveButton.setOnClickListener(new View.OnClickListener() {
                                 @Override

@@ -10,9 +10,17 @@
     <ImageView
         android:id="@+id/accountQrCode"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="105dp"
         android:contentDescription="@string/text_place_holder"
-        android:src="@mipmap/ic_launcher_distort" />
+        android:src="@drawable/generate_qr_code" />
+
+    <TextView
+        android:id="@+id/waitingText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:text="@string/text_generating_qr_code"
+        android:textSize="14sp" />
 
     <Space
         android:layout_width="match_parent"
@@ -22,6 +30,7 @@
         android:id="@+id/accountIdText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:gravity="clip_horizontal"
         android:text="@string/text_place_holder"
         android:textIsSelectable="true"
         android:textSize="14sp"

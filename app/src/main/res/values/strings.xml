@@ -22,7 +22,6 @@
     <string name="title_create_new_conversation">Create New Conversation</string>
     <string name="prompt_opt_account_name">(Optional account)</string>
     <string name="prompt_mesage">Message...</string>
-    <string name="message_from_self">Self</string>
     <string name="messages_total_height">Total Messages</string>
     <string name="messages_unread">Unread</string>
     <string name="account_credentials_preferences_key">com.unix4all.rypi.distort.ACCOUNT_CREDENTIALS_PREFERENCES</string>
@@ -125,7 +124,7 @@
     <string name="prompt_cancel">Cancel</string>
     <string name="title_remove_group">Are you sure you want to remove group?</string>
     <string name="description_remove_group">Removing this group will cause all messages received on it to be deleted forever. You can not receive any messages sent to you over this group while it is removed.</string>
-    <string name="hint_wait_for_enable">Please wait 5 seconds for remove button to become active</string>
+    <string name="hint_wait_for_enable">Please wait 3 seconds for remove button to become active</string>
     <string name="title_remove_peer">Are you sure you want to remove peer?</string>
     <string name="description_remove_peer">You may still receive messages from this peer while they are not added, but they will not be displayed until the peer is added again.</string>
     <string name="account_preferences_key">com.unix4all.rypi.distort.ACCOUNT_PREFERENCES</string>
@@ -143,4 +142,6 @@
     <string name="error_invalid_barcode">Invalid account ID</string>
     <string name="error_resolve_address">Failed to resolve homeserver address</string>
     <string name="icon_colours_preferences_keys">com.unix4all.rypi.distort.ICON_COLOURS</string>
+    <string name="text_generating_qr_code">Generating...</string>
+    <string name="message_from_self">~</string>
 </resources>
