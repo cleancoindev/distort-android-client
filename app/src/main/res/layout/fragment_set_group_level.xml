@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/setGroupLevelLayout"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <Spinner
+        android:id="@+id/setGroupLevel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:entries="@array/new_group_levels" />
+
+    <TextView
+        android:id="@+id/setGroupLevelHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/text_join_new_group_level" />
+
+    <Button
+        android:id="@+id/setGroupLevelButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/button_set_group_level" />
+
+</LinearLayout>

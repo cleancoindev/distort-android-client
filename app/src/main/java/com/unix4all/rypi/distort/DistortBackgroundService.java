@@ -5,42 +5,33 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.Intent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.JsonWriter;
 import android.util.Log;
 
-
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.HttpsURLConnection;
-
-import static android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK;
-import static android.content.Intent.FLAG_ACTIVITY_NEW_DOCUMENT;
-import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 
 /**
  * An {@link IntentService} subclass for handling asynchronous task requests in
@@ -559,7 +550,7 @@ public class DistortBackgroundService extends IntentService {
         Context context = getApplicationContext();
         try {
             JsonReader response = null;
-            String url = mLoginParams.getHomeserverAddress() + "groups/" + URLEncoder.encode(group.getName()) + "/" + String.valueOf(startIndex);
+            String url = mLoginParams.getHomeserverAddress() + "groups/" + Uri.encode(group.getName()) + "/" + String.valueOf(startIndex);
             URL homeserverEndpoint = new URL(url);
             if (DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                 HttpsURLConnection myConnection;
@@ -784,7 +775,7 @@ public class DistortBackgroundService extends IntentService {
         // Attempt authentication against a network service.
         try {
             JsonReader response = null;
-            URL homeserverEndpoint = new URL(mLoginParams.getHomeserverAddress() + "groups/" + URLEncoder.encode(group.getName(), "UTF-8"));
+            URL homeserverEndpoint = new URL(mLoginParams.getHomeserverAddress() + "groups/" + Uri.encode(group.getName()));
             if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                 HttpsURLConnection myConnection;
                 myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();

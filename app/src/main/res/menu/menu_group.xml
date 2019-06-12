@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/setSubgroupMenuItem"
+        android:title="@string/menu_set_subgroup" />
+    <item
+        android:id="@+id/removeGroupMenuItem"
+        android:title="@string/menu_remove" />
+</menu>

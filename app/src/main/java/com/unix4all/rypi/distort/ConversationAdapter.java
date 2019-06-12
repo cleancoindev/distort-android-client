@@ -7,7 +7,9 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.support.constraint.ConstraintLayout;
 import android.support.v7.widget.RecyclerView;
+import android.view.ContextMenu;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -31,7 +33,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
     @Override
     public ConversationViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.recycler_view_peer, parent, false);
-        return new ConversationViewHolder(view);
+        return new ConversationViewHolder(view, mContext);
     }
 
     @Override
@@ -76,13 +78,6 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
                 }
                 mIntent.putExtra("icon", holder.mIcon.getText().toString());
                 mContext.startActivity(mIntent);
-            }
-        });
-        holder.mPeerContainer.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                mContext.showRemovePeer(position);
-                return true;
             }
         });
     }
@@ -146,18 +141,46 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
     }
 }
 
-class ConversationViewHolder extends RecyclerView.ViewHolder {
+class ConversationViewHolder extends RecyclerView.ViewHolder implements View.OnCreateContextMenuListener, MenuItem.OnMenuItemClickListener {
+    PeerConversationActivity mContext;
+
     TextView mIcon;
     TextView mNickname;
     TextView mPeerId;
     ConstraintLayout mPeerContainer;
 
-    public ConversationViewHolder(View itemView) {
+    public ConversationViewHolder(View itemView, PeerConversationActivity context) {
         super(itemView);
 
+        mContext = context;
         mIcon = itemView.findViewById(R.id.peerIcon);
         mNickname = itemView.findViewById(R.id.peerNickname);
         mPeerId = itemView.findViewById(R.id.peerId);
         mPeerContainer = itemView.findViewById(R.id.peerContainer);
+        mPeerContainer.setOnCreateContextMenuListener(this);
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        mContext.getMenuInflater().inflate(R.menu.menu_peer, menu);
+        for(int i = 0; i < menu.size(); i++) {
+            menu.getItem(i).setOnMenuItemClickListener(this);
+        }
+    }
+
+    @Override
+    public boolean onMenuItemClick(MenuItem item) {
+
+        switch (item.getItemId()) {
+            case R.id.renamePeerMenuItem:
+                this.
+                mContext.showRenamePeer(this.getAdapterPosition());
+                break;
+
+            case R.id.removePeerMenuItem:
+                mContext.showRemovePeer(this.getAdapterPosition());
+                break;
+        }
+        return true;
     }
 }

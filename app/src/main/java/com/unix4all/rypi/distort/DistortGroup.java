@@ -1,6 +1,5 @@
 package com.unix4all.rypi.distort;
 
-import android.support.annotation.Nullable;
 import android.util.JsonReader;
 import android.util.JsonWriter;
 import android.util.Log;
@@ -19,6 +18,15 @@ public class DistortGroup {
         mSubgroupIndex = subgroupIndex;
     }
 
+    public static int getSubgroupLevel(int index) {
+        int i = 0;
+        while(index > 0) {
+            index = (index-1) / 2;
+            i++;
+        }
+        return i;
+    }
+
     // Getters
     public String getName() {
         return mName;
@@ -28,6 +36,9 @@ public class DistortGroup {
     }
     public Integer getSubgroupIndex() {
         return mSubgroupIndex;
+    }
+    public Integer getSubgroupLevel() {
+        return getSubgroupLevel(mSubgroupIndex);
     }
 
     // Setters

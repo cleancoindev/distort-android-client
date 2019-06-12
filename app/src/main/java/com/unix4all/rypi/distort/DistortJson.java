@@ -3,8 +3,6 @@ package com.unix4all.rypi.distort;
 import android.support.annotation.Nullable;
 import android.util.JsonReader;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -161,23 +159,23 @@ public class DistortJson {
     private static @Nullable JsonReader SendAndReadJSONFromURL(HttpURLConnection myConnection, DistortAuthParams loginParams, Map<String, String> bodyParams) throws DistortException {
         myConnection.setDoOutput(true);
 
-        String paramString = "";
-        boolean first = true;
-        for (Map.Entry<String, String> entry : bodyParams.entrySet())
-        {
-            if(first) {
-                first = false;
-            } else {
-                paramString += '&';
-            }
-            paramString += URLEncoder.encode(entry.getKey()) + "=" + URLEncoder.encode(entry.getValue());
-        }
-        byte[] postData = paramString.getBytes(Charset.forName("UTF-8"));
-
         JsonReader jsonReader = null;
         Integer response = 0;
 
         try {
+            // Create parameters string
+            StringBuilder sb = new StringBuilder();
+            boolean first = true;
+            for (Map.Entry<String, String> entry : bodyParams.entrySet())
+            {
+                if(first) {
+                    first = false;
+                } else {
+                    sb.append('&');
+                }
+                sb.append(URLEncoder.encode(entry.getKey(), "UTF-8") + "=" + URLEncoder.encode(entry.getValue(), "UTF-8"));
+            }
+            byte[] postData = sb.toString().getBytes(Charset.forName("UTF-8"));
 
             // Set request header fields
             myConnection.setRequestProperty("User-Agent", "distort-android-v0.1");

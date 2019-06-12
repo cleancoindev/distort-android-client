@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -28,7 +29,6 @@ import android.view.View;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -93,7 +93,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater findMenuItems = getMenuInflater();
-        findMenuItems.inflate(R.menu.options_menu, menu);
+        findMenuItems.inflate(R.menu.menu_options, menu);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -134,6 +134,14 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
         TimedRemoveFragment timedRemoveGroupFragment = TimedRemoveFragment.newInstance(this, title, description, groupIndex);
         timedRemoveGroupFragment.show(fm, "fragment_removeGroupLayout");
+    }
+
+    public void showChangeGroupLevel(int position) {
+        DistortGroup g = mGroupsAdapter.getItem(position);
+
+        FragmentManager fm = getSupportFragmentManager();
+        SetGroupLevelFragment setGroupLevelFragment = SetGroupLevelFragment.newInstance(g.getName(), g.getSubgroupLevel());
+        setGroupLevelFragment.show(fm, "fragment_setGroupLevelLayout");
     }
 
     @Override
@@ -326,7 +334,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
             // Attempt authentication against a network service.
             try {
                 JsonReader response = null;
-                String url = mLoginParams.getHomeserverAddress() + "groups/" + URLEncoder.encode(mGroupName, "UTF-8");
+                String url = mLoginParams.getHomeserverAddress() + "groups/" + Uri.encode(mGroupName);
 
                 HashMap<String, String> bodyParams = new HashMap<>();
 

@@ -7,11 +7,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.JsonReader;
@@ -23,7 +24,6 @@ import android.widget.TextView;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -261,9 +261,6 @@ public class MessagingActivity extends AppCompatActivity {
                 mActivity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-//                        for (int i = 0; i < messages.size(); i++) {
-//                            mMessagesAdapter.addOrUpdateMessage(messages.get(i));
-//                        }
                         for(int i : updatedMessages) {
                             mMessagesAdapter.addOrUpdateMessage(allMessages.get(i));
                         }
@@ -298,7 +295,7 @@ public class MessagingActivity extends AppCompatActivity {
             // Attempt authentication against a network service.
             try {
                 JsonReader response = null;
-                String url = mLoginParams.getHomeserverAddress() + "groups/" + URLEncoder.encode(mGroup.getName());
+                String url = mLoginParams.getHomeserverAddress() + "groups/" + Uri.encode(mGroup.getName());
 
                 HashMap<String, String> bodyParams = new HashMap<>();
                 bodyParams.put("toPeerId", mPeerId);

@@ -8,7 +8,9 @@ import android.graphics.drawable.GradientDrawable;
 import android.support.annotation.Nullable;
 import android.support.constraint.ConstraintLayout;
 import android.support.v7.widget.RecyclerView;
+import android.view.ContextMenu;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -34,7 +36,7 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
     @Override
     public GroupViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.recycler_view_group, parent, false);
-        return new GroupViewHolder(view);
+        return new GroupViewHolder(view, mContext);
     }
 
     @Override
@@ -62,7 +64,7 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
 
         // Set text fields
         holder.mName.setText(g.getName());
-        holder.mIndex.setText(String.format(Locale.getDefault(),"Node index: %d", g.getSubgroupIndex()));
+        holder.mIndex.setText(String.format(Locale.getDefault(),"Group level: %d", g.getSubgroupLevel()));
         final GroupViewHolder gvh = holder;
         holder.mGroupContainer.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -72,13 +74,6 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
                 // Put group fields
                 mIntent.putExtra("groupDatabaseId", g.getId());
                 mContext.startActivity(mIntent);
-            }
-        });
-        holder.mGroupContainer.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                mContext.showRemoveGroup(position);
-                return true;
             }
         });
     }
@@ -160,18 +155,45 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
     }
 }
 
-class GroupViewHolder extends RecyclerView.ViewHolder {
+class GroupViewHolder extends RecyclerView.ViewHolder implements View.OnCreateContextMenuListener, MenuItem.OnMenuItemClickListener {
+    GroupsActivity mContext;
+
     TextView mIcon;
     TextView mName;
     TextView mIndex;
     ConstraintLayout mGroupContainer;
 
-    public GroupViewHolder(View itemView) {
+    public GroupViewHolder(View itemView, GroupsActivity context) {
         super(itemView);
 
+        mContext = context;
         mIcon = itemView.findViewById(R.id.groupIcon);
         mName = itemView.findViewById(R.id.groupName);
         mIndex = itemView.findViewById(R.id.groupIndex);
         mGroupContainer = itemView.findViewById(R.id.groupContainer);
+        mGroupContainer.setOnCreateContextMenuListener(this);
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        mContext.getMenuInflater().inflate(R.menu.menu_group, menu);
+        for(int i = 0; i < menu.size(); i++) {
+            menu.getItem(i).setOnMenuItemClickListener(this);
+        }
+    }
+
+    @Override
+    public boolean onMenuItemClick(MenuItem item) {
+
+        switch (item.getItemId()) {
+            case R.id.setSubgroupMenuItem:
+                mContext.showChangeGroupLevel(this.getAdapterPosition());
+                break;
+
+            case R.id.removeGroupMenuItem:
+                mContext.showRemoveGroup(this.getAdapterPosition());
+                break;
+        }
+        return true;
     }
 }

@@ -32,7 +32,8 @@ import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class PeerConversationActivity extends AppCompatActivity implements NewConversationFragment.NewConversationListener, TimedRemoveFragment.OnFragmentFinishedListener {
+public class PeerConversationActivity extends AppCompatActivity
+        implements NewConversationFragment.NewConversationListener, TimedRemoveFragment.OnFragmentFinishedListener, RenamePeerFragment.OnRenamePeerFragmentListener {
     private final PeerConversationActivity mActivity = this;
 
     private DistortAuthParams mLoginParams;
@@ -145,6 +146,14 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
         timedRemoveGroupFragment.show(fm, "fragment_removePeerLayout");
     }
 
+    public void showRenamePeer(int position) {
+        DistortConversation dc = mConversationAdapter.getItem(position);
+
+        FragmentManager fm = getSupportFragmentManager();
+        RenamePeerFragment f = RenamePeerFragment.newInstance(dc.getPeerId(), dc.getAccountName());
+        f.show(fm, "fragment_renamePeerLayout");
+    }
+
     @Override
     public void onFinishConvoFieldInputs(String friendlyName, String peerId, String accountName) {
         mAddPeerTask = new AddPeerTask(this, friendlyName, peerId, accountName);
@@ -158,6 +167,18 @@ public class PeerConversationActivity extends AppCompatActivity implements NewCo
             mRemovePeerTask = new RemovePeerTask(this, c.getPeerId(), c.getAccountName(), position);
             mRemovePeerTask.execute();
         }
+    }
+
+    @Override
+    public void OnRenamePeer(String nickname, String peerId, String accountName) {
+        if(mAddPeerTask != null) {
+            Snackbar.make(findViewById(R.id.peerConversationsConstraintLayout),
+                getString(R.string.error_simultaneous_operations), Snackbar.LENGTH_LONG).show();
+            return;
+        }
+
+        mAddPeerTask = new AddPeerTask(this, nickname, peerId, accountName);
+        mAddPeerTask.execute();
     }
 
     // Handle successful retrieval of peers

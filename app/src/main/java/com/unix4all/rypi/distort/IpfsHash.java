@@ -1,6 +1,5 @@
 package com.unix4all.rypi.distort;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class IpfsHash {
