@@ -9,34 +9,32 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
+import java.util.TimeZone;
 
 // Class representing a group
 public class DistortConversation {
-    private @Nullable String mId;
-    private final String mGroupId;
+    private final String mGroupName;
     private String mPeerId;
     private String mAccountName;
     private @Nullable String mNickname;
     private Integer mHeight;
     private @Nullable Date mLatestStatusChangeDate;
 
-    protected static final SimpleDateFormat mongoDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+    protected static final String mongoDateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
-    DistortConversation(@Nullable String id, String groupId, String peerId, String accountName, Integer height, @Nullable Date latestChangeDate) {
-        mId = id;
-        mGroupId = groupId;
+    DistortConversation(String group, String peerId, String accountName, Integer height, @Nullable Date latestChangeDate) {
+        mGroupName = group;
         mPeerId = peerId;
         mAccountName = accountName;
         mHeight = height;
         mLatestStatusChangeDate = latestChangeDate;
     }
 
-    public static String toUniqueLabel(String groupId, String peerFullAddress) {
-        return groupId + ":" + peerFullAddress;
+    public static String toUniqueLabel(String group, String peerFullAddress) {
+        return group + ":" + peerFullAddress;
     }
-    public static String toUniqueLabel(String groupId, String peerFullAddress, String[] args) {
-        String r = groupId + ":" + peerFullAddress;
+    public static String toUniqueLabel(String group, String peerFullAddress, String[] args) {
+        String r = group + ":" + peerFullAddress;
         for(int i = 0; i < args.length; i++) {
             r += ":" + args[i];
         }
@@ -44,11 +42,8 @@ public class DistortConversation {
     }
 
     // Getters
-    public @Nullable String getId() {
-        return mId;
-    }
-    public String getGroupId() {
-        return mGroupId;
+    public String getGroup() {
+        return mGroupName;
     }
     public String getPeerId() {
         return mPeerId;
@@ -78,13 +73,10 @@ public class DistortConversation {
         return mLatestStatusChangeDate;
     }
     public String getUniqueLabel() {
-        return toUniqueLabel(mGroupId, getFullAddress());
+        return toUniqueLabel(mGroupName, getFullAddress());
     }
 
     // Setters
-    public void setId(String id) {
-        mId = id;
-    }
     public void setPeerId(String peerId) {
         mPeerId = peerId;
     }
@@ -104,22 +96,22 @@ public class DistortConversation {
     }
 
     // Static parsing function
-    static DistortConversation readJson(JsonReader json, @Nullable String groupDatabaseId) throws IOException {
-        String id = null;
-        String groupId = groupDatabaseId;
+    static DistortConversation readJson(JsonReader json, @Nullable String groupName) throws IOException {
+        String group = groupName;
         String peerId = null;
         String accountName = null;
         Integer height = null;
         Date latestChangeDate = null;
 
-        // Read all fields from group
+        SimpleDateFormat format = new SimpleDateFormat(mongoDateFormat);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        // Read all fields from conversation
         json.beginObject();
         while(json.hasNext()) {
             String key = json.nextName();
-            if(key.equals("_id")) {
-                id = json.nextString();
-            } else if(key.equals("group")) {
-                groupId = json.nextString();
+            if(key.equals("group")) {
+                group = json.nextString();
             } else if(key.equals("height")) {
                 height = json.nextInt();
             } else if(key.equals("peerId")) {
@@ -128,7 +120,7 @@ public class DistortConversation {
                 accountName = json.nextString();
             } else if(key.equals("latestStatusChangeDate")) {
                 try {
-                    latestChangeDate = mongoDateFormat.parse(json.nextString());
+                    latestChangeDate = format.parse(json.nextString());
                 } catch (ParseException e) {
                     latestChangeDate = new Date(0);
                 }
@@ -138,26 +130,26 @@ public class DistortConversation {
         }
         json.endObject();
 
-        if(groupId != null && peerId != null && accountName != null && height != null && latestChangeDate != null) {
-            Log.d("READ-CONVERSATION", "Conversation ( " + groupId + "," + peerId + "," + accountName + "," + height+ "," + mongoDateFormat.format(latestChangeDate) + " )");
-            return new DistortConversation(id, groupId, peerId, accountName, height, latestChangeDate);
+        if(group != null && peerId != null && accountName != null && height != null && latestChangeDate != null) {
+            Log.d("READ-CONVERSATION", "Conversation ( " + group + "," + peerId + "," + accountName + "," + height + "," + format.format(latestChangeDate) + " )");
+            return new DistortConversation(group, peerId, accountName, height, latestChangeDate);
         } else {
-            throw new IOException();
+            throw new IOException("Missing conversation parameters");
         }
     }
 
     // Write this object to JSON
     public void writeJson(JsonWriter json) throws IOException {
-        // Read all fields from group
+        SimpleDateFormat format = new SimpleDateFormat(mongoDateFormat);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        // Write all fields from conversation
         json.beginObject();
-        if(mId != null) {
-            json.name("_id").value(mId);
-        }
-        json.name("group").value(mGroupId);
+        json.name("group").value(mGroupName);
         json.name("peerId").value(mPeerId);
         json.name("accountName").value(mAccountName);
         json.name("height").value(mHeight);
-        json.name("latestStatusChangeDate").value(mongoDateFormat.format(mLatestStatusChangeDate));
+        json.name("latestStatusChangeDate").value(format.format(mLatestStatusChangeDate));
         json.endObject();
     }
 }

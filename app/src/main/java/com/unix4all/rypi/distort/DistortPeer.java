@@ -11,14 +11,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DistortPeer {
-    private final String mId;
     private @Nullable String mNickname;
     private String mPeerId;
     private String mAccountName;
     private HashMap<String, Integer> mGroups;
 
-    DistortPeer(String id, @Nullable  String nickname, String peerId, @Nullable String accountName, @Nullable ArrayList<String> groupsIndexCouple) {
-        mId = id;
+    DistortPeer(@Nullable  String nickname, String peerId, @Nullable String accountName, @Nullable ArrayList<String> groupsIndexCouple) {
         mNickname = nickname;
         mPeerId = peerId;
 
@@ -58,9 +56,6 @@ public class DistortPeer {
     }
 
     // Getters
-    public String getId() {
-        return mId;
-    }
     public @Nullable String getNickname() {
         return mNickname;
     }
@@ -108,47 +103,35 @@ public class DistortPeer {
         String nickname = null;
         String peerId = null;
         String accountName = null;
-        String id = null;
         ArrayList<String> groupIndexCouples = new ArrayList<>();
 
-        // Read all fields from group
+        // Read all fields from peer
         json.beginObject();
         while(json.hasNext()) {
             // name subgroupIndex height lastReadIndex
             String key = json.nextName();
             if(key.equals("nickname")) {
                 nickname = json.nextString();
-            } else if(key.equals("_id")) {
-                id = json.nextString();
             } else if(key.equals("peerId")) {
                 peerId = json.nextString();
             } else if(key.equals("accountName")) {
                 accountName = json.nextString();
-            } else if(key.equals("cert")) {
-                json.beginObject();
+            } else if(key.equals("groups")) {
+                json.beginArray();
                 while(json.hasNext()) {
-                    String certKey = json.nextName();
-                    if(certKey.equals("groups")) {
-                        json.beginArray();
-                        while(json.hasNext()) {
-                            groupIndexCouples.add(json.nextString());
-                        }
-                        json.endArray();
-                    } else {
-                        json.skipValue();
-                    }
+                    groupIndexCouples.add(json.nextString());
                 }
-                json.endObject();
+                json.endArray();
             } else {
                 json.skipValue();
             }
         }
         json.endObject();
 
-        if(id != null && peerId != null) {
+        if(peerId != null && accountName != null) {
             String nicknameStr = (nickname != null) ? nickname : "";
-            Log.d("READ_PEER", "Peer ( " + id + "," + nicknameStr + "," + peerId + "," + accountName + " )");
-            return new DistortPeer(id, nickname, peerId, accountName, groupIndexCouples);
+            Log.d("READ_PEER", "Peer ( " + nicknameStr + "," + peerId + "," + accountName + " )");
+            return new DistortPeer(nickname, peerId, accountName, groupIndexCouples);
         } else {
             throw new IOException();
         }
@@ -156,19 +139,16 @@ public class DistortPeer {
 
     // Write this object to JSON
     public void writeJson(JsonWriter json) throws IOException {
-        // Read all fields from group
+        // Write all fields from peer
         json.beginObject();
         json.name("nickname").value(mNickname);
-        json.name("_id").value(mId);
         json.name("peerId").value(mPeerId);
         json.name("accountName").value(mAccountName);
-        json.name("cert").beginObject();
-            json.name("groups").beginArray();
+        json.name("groups").beginArray();
             for(Map.Entry<String, Integer> group : mGroups.entrySet()) {
                 json.value(group.getKey() + ':' + String.valueOf(group.getValue()));
             }
-            json.endArray();    // Groups array
-        json.endObject();       // Cert object
-        json.endObject();       // Peer object
+        json.endArray();    // Groups array
+        json.endObject();   // Peer object
     }
 }

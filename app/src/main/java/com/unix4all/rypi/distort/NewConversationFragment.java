@@ -81,7 +81,6 @@ public class NewConversationFragment extends DialogFragment {
 
         // Allow QR code scans
         mScanQrCode = view.findViewById(R.id.scanQRCodeButton);
-        final Activity activity = getActivity();
         mScanQrCode.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -110,7 +109,6 @@ public class NewConversationFragment extends DialogFragment {
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
         IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
         if(result != null && result.getContents() != null) {
-            result.getContents();
             Matcher matcher = IS_ACCOUNT_ID_PATTERN.matcher(result.getContents());
             if(matcher.matches()) {
                 mPeerId.setText(matcher.group(1));

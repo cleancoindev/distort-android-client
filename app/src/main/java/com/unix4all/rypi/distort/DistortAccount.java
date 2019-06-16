@@ -9,24 +9,19 @@ import android.util.Log;
 import java.io.IOException;
 
 public class DistortAccount {
-    private String mId;
     private String mPeerId;
     private String mAccountName;
     private Boolean mEnabled;
-    private @Nullable String mActiveGroupId;
+    private @Nullable String mActiveGroup;
 
-    DistortAccount(String id, String peerId, String accountName, Boolean enabled, String activeGroupId) {
-        mId = id;
+    DistortAccount(String peerId, String accountName, Boolean enabled, @Nullable String activeGroup) {
         mPeerId = peerId;
         mAccountName = accountName;
         mEnabled = enabled;
-        mActiveGroupId = activeGroupId;
+        mActiveGroup = activeGroup;
     }
 
-    public String getId() {
-        return mId;
-    }
-    public String getPeerId() {
+   public String getPeerId() {
         return mPeerId;
     }
     public String getAccountName() {
@@ -36,13 +31,10 @@ public class DistortAccount {
         return mEnabled;
     }
     @Nullable
-    public String getActiveGroupId() {
-        return mActiveGroupId;
+    public String getActiveGroup() {
+        return mActiveGroup;
     }
 
-    public void setId(String id) {
-        mId = id;
-    }
     public void setPeerId(String peerId) {
         mPeerId = peerId;
     }
@@ -52,14 +44,13 @@ public class DistortAccount {
     public void setEnabled(Boolean enabled) {
         mEnabled = enabled;
     }
-    public void setActiveGroupId(@Nullable String activeGroupId) {
-        mActiveGroupId = activeGroupId;
+    public void setActiveGroup(@Nullable String activeGroup) {
+        mActiveGroup = activeGroup;
     }
 
     public static DistortAccount readJson(JsonReader reader) throws IOException {
-        String id = null;
         String accountName = null;
-        String activeGroupId = null;
+        String activeGroup = null;
         Boolean enabled = null;
         String peerId = null;
 
@@ -67,18 +58,10 @@ public class DistortAccount {
         reader.beginObject();
         while(reader.hasNext()) {
             String key = reader.nextName();
-            if(key.equals("_id")) {
-                id = reader.nextString();
-            } else if(key.equals("accountName")) {
+            if(key.equals("accountName")) {
                 accountName = reader.nextString();
             } else if(key.equals("activeGroup")) {
-                if(reader.peek().equals(JsonToken.BEGIN_OBJECT)) {
-                    activeGroupId = DistortGroup.readJson(reader).getId();
-                } else if(reader.peek().equals(JsonToken.STRING)) {
-                    activeGroupId = reader.nextString();
-                } else {
-                    reader.skipValue();
-                }
+                activeGroup = reader.nextString();
             } else if(key.equals("enabled")) {
                 enabled = reader.nextBoolean();
             } else if(key.equals("peerId")) {
@@ -89,30 +72,29 @@ public class DistortAccount {
         }
         reader.endObject();
 
-        if(id != null && accountName != null && enabled != null && peerId != null) {
+        if(accountName != null && enabled != null && peerId != null) {
             String activeGroupStr = "";
-            if (activeGroupId != null) {
-                activeGroupStr += "," + activeGroupId;
+            if (activeGroup != null) {
+                activeGroupStr += "," + activeGroup;
             }
-            Log.d("READ-ACCOUNT", "Account ( " + id + "," + peerId + "," + accountName + "," + enabled + activeGroupStr + " )");
+            Log.d("READ-ACCOUNT", "Account ( " + peerId + "," + accountName + "," + enabled + activeGroupStr + " )");
 
-            return new DistortAccount(id, peerId, accountName, enabled, activeGroupId);
+            return new DistortAccount(peerId, accountName, enabled, activeGroup);
         } else {
-            throw new IOException("Missing parameters");
+            throw new IOException("Missing account parameters");
         }
     }
 
 
     // Write this object to JSON
     public void writeJson(JsonWriter json) throws IOException {
-        // Read all fields from group
+        // Write all fields from account
         json.beginObject();
-        json.name("_id").value(mId);
         json.name("peerId").value(mPeerId);
         json.name("accountName").value(mAccountName);
         json.name("enabled").value(mEnabled);
-        if(mActiveGroupId != null && !mActiveGroupId.isEmpty()) {
-            json.name("activeGroup").value(mActiveGroupId);
+        if(mActiveGroup != null && !mActiveGroup.isEmpty()) {
+            json.name("activeGroup").value(mActiveGroup);
         }
         json.endObject();
     }

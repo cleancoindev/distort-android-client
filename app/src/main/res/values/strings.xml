@@ -13,7 +13,6 @@
     <string name="error_homeserver_could_not_reach">The given homeserver address was not reachable</string>
     <string name="permission_camera_reason">The Camera permission is required for reading QR codes</string>
 
-    <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="action_scan_qr">Scan QR</string>
     <string name="prompt_freindly_name">Friendly Name</string>
@@ -136,7 +135,7 @@
     <string name="prompt_set">SET</string>
     <string name="title_change_password">Change Password</string>
     <string name="error_passwords_do_not_math">Passwords do not match</string>
-    <string name="menu_account_id">Account ID</string>
+    <string name="menu_account_id">Account</string>
     <string name="label_account_id">Account Full ID</string>
     <string name="text_place_holder">PLACE HOLDER</string>
     <string name="error_invalid_barcode">Invalid account ID</string>
@@ -144,10 +143,21 @@
     <string name="icon_colours_preferences_keys">com.unix4all.rypi.distort.ICON_COLOURS</string>
     <string name="text_generating_qr_code">Generating...</string>
     <string name="message_from_self">~</string>
-    <string name="menu_set_subgroup">Set subgroup</string>
+    <string name="menu_set_subgroup">Set group level</string>
     <string name="menu_remove">Remove</string>
     <string name="menu_rename_peer">Rename</string>
     <string name="button_set_group_level">Set level</string>
     <string name="button_rename_peer">Rename peer</string>
     <string name="error_simultaneous_operations">Please wait for previous task to complete</string>
+    <string name="button_create_account">Create account</string>
+    <string name="hint_req_account_name">Account name</string>
+    <string name="hint_create_account_token">Account creation token</string>
+    <string name="error_account_already_exists">Specified account already exists</string>
+    <string name="error_invalid_signature">Invalid account creation token. \"root\" must sign account name</string>
+    <string name="error_no_accounts">There are no accounts using the required IPFS identity</string>
+    <string name="button_sign_text">Sign text</string>
+    <string name="hint_text_to_sign">Enter text to sign</string>
+    <string name="title_account_activity">Account</string>
+    <string name="title_activity_signing">Signature Creation</string>
+    <string name="error_generate_barcode">Failed to generate QR code</string>
 </resources>

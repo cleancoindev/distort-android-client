@@ -13,6 +13,6 @@
 
     </item>
     <item
-        android:id="@+id/accountIdOption"
+        android:id="@+id/accountOption"
         android:title="@string/menu_account_id" />
 </menu>

@@ -22,15 +22,15 @@ import java.util.Random;
 public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
     private ArrayList<DistortGroup> mGroupsData;
     private GroupsActivity mContext;
-    private @Nullable String mActiveGroupId;
+    private @Nullable String mActiveGroup;
 
-    public GroupAdapter(GroupsActivity context, ArrayList<DistortGroup> groups, @Nullable String activeGroupId) {
+    public GroupAdapter(GroupsActivity context, ArrayList<DistortGroup> groups, @Nullable String activeGroup) {
         mGroupsData = groups;
         if(mGroupsData == null) {
             mGroupsData = new ArrayList<>();
         }
         mContext = context;
-        mActiveGroupId = activeGroupId;
+        mActiveGroup = activeGroup;
     }
 
     @Override
@@ -44,7 +44,7 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
         final DistortGroup g = mGroupsData.get(position);
 
         // Set group colour if active
-        if(g.getId().equals(mActiveGroupId)) {
+        if(g.getName().equals(mActiveGroup)) {
             ((GradientDrawable) holder.mGroupContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.activeGroupColour));
         } else {
             ((GradientDrawable) holder.mGroupContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.disabledGroupColour));
@@ -54,11 +54,11 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
         holder.mIcon.setText(g.getName().substring(0, 1));
         SharedPreferences sp = mContext.getSharedPreferences(mContext.getString(R.string.icon_colours_preferences_keys),
                 Context.MODE_PRIVATE);
-        int colour = sp.getInt(g.getId()+":colour", 0);
+        int colour = sp.getInt(g.getName()+":colour", 0);
         if(colour == 0) {
             Random mRandom = new Random();
             colour = Color.argb(255, mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256));
-            sp.edit().putInt(g.getId()+":colour", colour).apply();
+            sp.edit().putInt(g.getName()+":colour", colour).apply();
         }
         ((GradientDrawable) holder.mIcon.getBackground()).setColor(colour);
 
@@ -72,7 +72,7 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
                 Intent mIntent = new Intent(mContext, PeerConversationActivity.class);
 
                 // Put group fields
-                mIntent.putExtra("groupDatabaseId", g.getId());
+                mIntent.putExtra("groupName", g.getName());
                 mContext.startActivity(mIntent);
             }
         });
@@ -87,39 +87,39 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
         return mGroupsData.get(arrayIndex);
     }
 
-    public void updateActiveGroup(@Nullable String newActiveGroupId) {
-        @Nullable String oldId = mActiveGroupId;
-        mActiveGroupId = newActiveGroupId;
+    public void updateActiveGroup(@Nullable String newActiveGroup) {
+        @Nullable String old = mActiveGroup;
+        mActiveGroup = newActiveGroup;
 
-        if(oldId == null) {
-            if(newActiveGroupId == null) {
+        if(old == null || old.isEmpty()) {
+            if(newActiveGroup == null || newActiveGroup.isEmpty()) {
                 return;
             }
 
             // Set new active group only
             for(int i = 0; i < mGroupsData.size(); i++) {
-                if(mGroupsData.get(i).getId().equals(newActiveGroupId)) {
+                if(mGroupsData.get(i).getName().equals(newActiveGroup)) {
                     // No old active group, set new group to active and exit
                     notifyItemChanged(i);
                     return;
                 }
             }
-        } else if(oldId.equals(newActiveGroupId)) {
+        } else if(old.equals(newActiveGroup)) {
             return;
         }
 
         boolean unsetOld = false;
-        boolean setNew = (newActiveGroupId == null);
+        boolean setNew = newActiveGroup == null || newActiveGroup.isEmpty();
         for(int i = 0; i < mGroupsData.size(); i++) {
-            if(mGroupsData.get(i).getId().equals(oldId)) {
-                // Unset active group
+            if(mGroupsData.get(i).getName().equals(old)) {
+                // Unset previous active group
                 notifyItemChanged(i);
                 if(setNew) {
                     return;
                 } else {
                     unsetOld = true;
                 }
-            } else if(mGroupsData.get(i).getId().equals(newActiveGroupId)) {
+            } else if(mGroupsData.get(i).getName().equals(newActiveGroup)) {
                 // Set active group
                 notifyItemChanged(i);
                 if(unsetOld) {
@@ -134,7 +134,7 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
     public void addOrUpdateGroup(DistortGroup group) {
         int position = mGroupsData.size();
         for(int i = 0; i < mGroupsData.size(); i++) {
-            if(mGroupsData.get(i).getId().equals(group.getId())) {
+            if(mGroupsData.get(i).getName().equals(group.getName())) {
                 position = i;
                 break;
             }
@@ -143,9 +143,10 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupViewHolder> {
             mGroupsData.add(position, group);
             notifyItemInserted(position);
         } else {
-            mGroupsData.get(position).setName(group.getName());
-            mGroupsData.get(position).setSubgroupIndex(group.getSubgroupIndex());
-            notifyItemChanged(position);
+            if(!mGroupsData.get(position).getSubgroupIndex().equals(group.getSubgroupIndex())) {
+                mGroupsData.get(position).setSubgroupIndex(group.getSubgroupIndex());
+                notifyItemChanged(position);
+            }
         }
     }
 

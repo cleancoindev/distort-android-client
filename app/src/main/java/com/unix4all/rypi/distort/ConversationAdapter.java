@@ -19,10 +19,12 @@ import java.util.Random;
 
 public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHolder> {
     private ArrayList<DistortConversation> mConversationsData;
+    private String mGroupName;
     private PeerConversationActivity mContext;
 
-    public ConversationAdapter(PeerConversationActivity context, ArrayList<DistortConversation> conversations) {
+    public ConversationAdapter(PeerConversationActivity context, ArrayList<DistortConversation> conversations, String groupName) {
         mContext = context;
+        mGroupName = groupName;
         if(conversations == null) {
             mConversationsData = new ArrayList<>();
         } else {
@@ -72,10 +74,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
                 mIntent.putExtra("peerId", conversation.getPeerId());
                 mIntent.putExtra("accountName", conversation.getAccountName());
                 mIntent.putExtra("nickname", conversation.getNickname());
-                mIntent.putExtra("groupDatabaseId", conversation.getGroupId());
-                if(conversation.getId() != null) {
-                    mIntent.putExtra("conversationDatabaseId", conversation.getId());
-                }
+                mIntent.putExtra("groupName", conversation.getGroup());
                 mIntent.putExtra("icon", holder.mIcon.getText().toString());
                 mContext.startActivity(mIntent);
             }
@@ -91,7 +90,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
         return mConversationsData.get(arrayIndex);
     }
 
-    public void addOrUpdateConversationPeer(DistortPeer peer, String groupId) {
+    public void addOrUpdateConversationPeer(DistortPeer peer) {
         int position = mConversationsData.size();
         for(int i = 0; i < mConversationsData.size(); i++) {
             DistortConversation c = mConversationsData.get(i);
@@ -103,13 +102,19 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
 
         if(position == mConversationsData.size()) {
             // Add new empty conversation to list for given peer
-            DistortConversation c = new DistortConversation(null, groupId, peer.getPeerId(), peer.getAccountName(), 0, null);
+            DistortConversation c = new DistortConversation(mGroupName, peer.getPeerId(), peer.getAccountName(), 0, null);
+            c.setNickname(peer.getNickname());
+
             mConversationsData.add(position, c);
             notifyItemInserted(position);
         } else {
+            DistortConversation c = mConversationsData.get(position);
+
             // Peer object can only update nickname of conversation
-            mConversationsData.get(position).setNickname(peer.getFriendlyName());
-            notifyItemChanged(position);
+            if(!peer.getFriendlyName().equals(c.getNickname())) {
+                c.setNickname(peer.getFriendlyName());
+                notifyItemChanged(position);
+            }
         }
     }
 
@@ -117,7 +122,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
         int position = mConversationsData.size();
         for(int i = 0; i < mConversationsData.size(); i++) {
             DistortConversation c = mConversationsData.get(i);
-            if(c.getFullAddress().equals(conversation.getFullAddress())) {
+            if(c.getUniqueLabel().equals(conversation.getUniqueLabel())) {
                 position = i;
                 break;
             }
@@ -127,11 +132,21 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationViewHo
             mConversationsData.add(position, conversation);
             notifyItemInserted(position);
         } else {
-            // Conversation object cannot modify a set nickname value
-            mConversationsData.get(position).setId(conversation.getId());
-            mConversationsData.get(position).setLatestStatusChangeDate(conversation.getLatestStatusChangeDate());
-            mConversationsData.get(position).setHeight(conversation.getHeight());
-            notifyItemChanged(position);
+            boolean changed = false;
+            DistortConversation c = mConversationsData.get(position);
+
+            if(!conversation.getLatestStatusChangeDate().equals(c.getLatestStatusChangeDate())){
+                changed = true;
+                c.setLatestStatusChangeDate(conversation.getLatestStatusChangeDate());
+            }
+            if(!conversation.getHeight().equals(c.getHeight())){
+                changed = true;
+                c.setHeight(conversation.getHeight());
+            }
+
+            if(changed) {
+                notifyItemChanged(position);
+            }
         }
     }
 

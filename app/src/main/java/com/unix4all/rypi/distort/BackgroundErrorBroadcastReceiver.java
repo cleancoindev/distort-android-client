@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.support.design.widget.Snackbar;
+import android.util.Log;
 import android.view.View;
 
 public class BackgroundErrorBroadcastReceiver extends BroadcastReceiver {
@@ -18,10 +19,13 @@ public class BackgroundErrorBroadcastReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, final Intent intent) {
+        final String error = intent.getStringExtra("error");
+        Log.e("BACKGROUND-ERROR", error);
+
         mActivity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                Snackbar.make(view, intent.getStringExtra("error"),
+                Snackbar.make(view, error,
                         Snackbar.LENGTH_LONG)
                         .show();
             }

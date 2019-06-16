@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/signingLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_gravity="center|top"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="@color/ic_launcher_distort_background"
+    android:clickable="true"
+    tools:context=".SigningActivity">
+
+    <ImageView
+        android:id="@+id/signedQrCode"
+        android:layout_width="match_parent"
+        android:layout_height="512px"
+        android:contentDescription="@string/text_place_holder"
+        android:src="@drawable/generate_qr_code" />
+
+    <TextView
+        android:id="@+id/waitingText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:text="@string/text_generating_qr_code"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/signedTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="clip_horizontal|center_horizontal"
+        android:text="@string/text_place_holder"
+        android:textIsSelectable="true"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <EditText
+            android:id="@+id/signTextEdit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:gravity="center_horizontal"
+            android:hint="@string/hint_text_to_sign"
+            android:inputType="textPersonName" />
+    </android.support.design.widget.TextInputLayout>
+
+    <Button
+        android:id="@+id/signTextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/button_sign_text" />
+
+</LinearLayout>

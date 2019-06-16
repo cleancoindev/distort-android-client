@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -56,15 +55,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_groups);
 
-        // Use shared preferences to fetch authorization params
-        SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
-        mLoginParams = new DistortAuthParams();
-        mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
-        mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
-        mLoginParams.setPeerId(sharedPref.getString(DistortAuthParams.EXTRA_PEER_ID, null));
-        mLoginParams.setAccountName(sharedPref.getString(DistortAuthParams.EXTRA_ACCOUNT_NAME, null));
-        mLoginParams.setCredential(sharedPref.getString(DistortAuthParams.EXTRA_CREDENTIAL, null));
+        mLoginParams = DistortAuthParams.getAuthenticationParams(this);
 
         // Init toolbar
         Toolbar toolbar = findViewById(R.id.groupToolbar);
@@ -80,6 +71,10 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         // Prepare for datasets
         mGroupsAdapter = new GroupAdapter(this, new ArrayList<DistortGroup>(), null);
         mGroupsView.setAdapter(mGroupsAdapter);
+        HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(this);
+        for(Map.Entry<String, DistortGroup> group : allGroups.entrySet()) {
+            mGroupsAdapter.addOrUpdateGroup(group.getValue());
+        }
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -110,10 +105,9 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                 Intent intent = new Intent(this, SettingsActivity.class);
                 this.startActivity(intent);
                 return true;
-            case R.id.accountIdOption:
-                fm = getSupportFragmentManager();
-                AccountIdFragment accountIdFragment = AccountIdFragment.newInstance(mLoginParams.getPeerId(), mLoginParams.getAccountName());
-                accountIdFragment.show(fm, "fragment_accountIdLayout");
+            case R.id.accountOption:
+                intent = new Intent(this, AccountActivity.class);
+                this.startActivity(intent);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -214,7 +208,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
             mActivity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    mGroupsAdapter.updateActiveGroup(account.getActiveGroupId());
+                    mGroupsAdapter.updateActiveGroup(account.getActiveGroup());
                 }
             });
             mAccount = account;
@@ -255,11 +249,11 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                 if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                     HttpsURLConnection myConnection;
                     myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.PostBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                    response = DistortJson.postBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
                 } else {
                     HttpURLConnection myConnection;
                     myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.PostBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                    response = DistortJson.postBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
                 }
 
                 // Read new group response
@@ -268,7 +262,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
                 // If new group is the only group, then it will be active
                 if(mGroupsAdapter.getItemCount() == 0) {
-                    mGroupsAdapter.updateActiveGroup(newGroup.getId());
+                    mGroupsAdapter.updateActiveGroup(newGroup.getName());
                 }
 
                 mActivity.runOnUiThread(new Runnable() {
@@ -342,11 +336,11 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                 if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                     HttpsURLConnection myConnection;
                     myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.DeleteBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                    response = DistortJson.deleteBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
                 } else {
                     HttpURLConnection myConnection;
                     myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.DeleteBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                    response = DistortJson.deleteBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
                 }
 
                 response.close();

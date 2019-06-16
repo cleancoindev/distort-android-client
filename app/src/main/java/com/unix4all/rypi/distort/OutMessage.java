@@ -5,8 +5,11 @@ import android.util.JsonWriter;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class OutMessage extends DistortMessage {
     private String mStatus;
@@ -32,8 +35,11 @@ public class OutMessage extends DistortMessage {
         mStatus = status;
     }
     void setLastStatusChange(String jsDate) throws IOException {
+        SimpleDateFormat format = new SimpleDateFormat(mongoDateFormat, Locale.US);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+
         try {
-            mLastStatusChange = DistortMessage.mongoDateFormat.parse(jsDate);
+            mLastStatusChange = format.parse(jsDate);
         } catch (ParseException e) {
             throw new IOException("Server sent invalid date-string: " + jsDate);
         }
@@ -48,9 +54,7 @@ public class OutMessage extends DistortMessage {
         jsonReader.beginObject();
         while(jsonReader.hasNext()) {
             String key = jsonReader.nextName();
-            if(key.equals("conversation")) {
-                message.setConversationId(jsonReader.nextString());
-            } else if(key.equals("status")) {
+            if(key.equals("status")) {
                 message.setStatus(jsonReader.nextString());
             } else  if(key.equals("index")) {
                 message.setIndex(jsonReader.nextInt());
@@ -67,13 +71,12 @@ public class OutMessage extends DistortMessage {
         return message;
     }
 
-    public static ArrayList<OutMessage> readArrayJsonForConversation(JsonReader jsonReader, String conversationDatabaseId) throws IOException {
+    public static ArrayList<OutMessage> readArrayJsonForConversation(JsonReader jsonReader) throws IOException {
         ArrayList<OutMessage> messages = new ArrayList<>();
 
         jsonReader.beginArray();
         while(jsonReader.hasNext()) {
             OutMessage m = readJson(jsonReader);
-            m.setConversationId(conversationDatabaseId);
             messages.add(m);
         }
         jsonReader.endArray();
@@ -83,11 +86,14 @@ public class OutMessage extends DistortMessage {
 
     // Write this object to JSON
     public void writeJson(JsonWriter json) throws IOException {
+        SimpleDateFormat format = new SimpleDateFormat(mongoDateFormat);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+
         json.beginObject();
         json.name("status").value(mStatus);
         json.name("index").value(getIndex());
         json.name("message").value(getMessage());
-        json.name("lastStatusChange").value(mongoDateFormat.format(mLastStatusChange));
+        json.name("lastStatusChange").value(format.format(mLastStatusChange));
         json.endObject();
     }
 }

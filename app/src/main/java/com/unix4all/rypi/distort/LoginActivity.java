@@ -13,6 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.support.annotation.Nullable;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
@@ -34,8 +35,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -48,15 +49,7 @@ import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_PEER_ID;
 /**
  * A login screen that offers login via homeserver / password.
  */
-public class LoginActivity extends AppCompatActivity {
-
-    /**
-     * Regex Pattern to identify if a string is a valid homeserver address, as well as
-     * fetch relevant substring from the URL.
-     */
-    private static final Pattern IS_ADDRESS_PATTERN = Pattern.compile("^(http(s)?://)?(([a-zA-Z0-9.-]+\\.[a-z]+)|((0*[0-9]|0*[1-9][0-9]|0*1[0-9][0-9]|0*2[0-4][0-9]|0*25[0-5])\\.){3}(0*[0-9]|0*[1-9][0-9]|0*1[0-9][0-9]|0*2[0-4][0-9]|0*25[0-5]))(:[0-9]*)?(/[a-zA-Z0-9%/.-]*)?$");
-
-
+public class LoginActivity extends AppCompatActivity implements CreateAccountFragment.OnAccountCreationListener {
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
@@ -68,6 +61,8 @@ public class LoginActivity extends AppCompatActivity {
     private EditText mPasswordView;
     private Button mSignInButton;
     private Button mSignInWithStoredButton;
+    private Button mCreateAccountButton;
+
     private View mProgressView;
     private View mLoginFormView;
     private @Nullable String mToken;
@@ -97,6 +92,22 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 attemptLogin();
+            }
+        });
+
+        mCreateAccountButton = findViewById(R.id.loginCreateAccountButton);
+        mCreateAccountButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                View loginForm = findViewById(R.id.login_form);
+                loginForm.setVisibility(View.GONE);
+
+                FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+                CreateAccountFragment f = CreateAccountFragment.newInstance(
+                    mHomeserverView.getText().toString(),
+                    mAccountNameView.getText().toString(),
+                    mPasswordView.getText().toString());
+                ft.replace(R.id.loginActivityLayout, f, "fragment_createAccountLayout").addToBackStack(null).commit();
             }
         });
 
@@ -163,7 +174,7 @@ public class LoginActivity extends AppCompatActivity {
             mHomeserverView.setError(getString(R.string.error_field_required));
             focusView = mHomeserverView;
             cancel = true;
-        } else if (!isAddressValid(homeserverAddr)) {
+        } else if (!DistortAuthParams.isAddressValid(homeserverAddr)) {
             mHomeserverView.setError(getString(R.string.error_invalid_address));
             focusView = mHomeserverView;
             cancel = true;
@@ -180,10 +191,6 @@ public class LoginActivity extends AppCompatActivity {
             mAuthTask = new UserLoginTask(this, homeserverAddr, password, account);
             mAuthTask.execute((Void) null);
         }
-    }
-
-    private boolean isAddressValid(String address) {
-        return IS_ADDRESS_PATTERN.matcher(address).matches();
     }
 
     @Override
@@ -238,6 +245,58 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
+    public void LaunchMainApplication(DistortAuthParams authParams) {
+        Context ctx = getApplicationContext();
+        mPasswordView.setText("");
+
+        // Save login  credentials for later ease
+        SharedPreferences sharedPref = ctx.getSharedPreferences(
+                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
+        SharedPreferences.Editor preferenceEditor = sharedPref.edit();
+        preferenceEditor.putString(EXTRA_HOMESERVER, authParams.getHomeserverAddress());
+        preferenceEditor.putString(EXTRA_HOMESERVER_PROTOCOL, authParams.getHomeserverProtocol());
+        preferenceEditor.putString(EXTRA_PEER_ID, authParams.getPeerId());
+        preferenceEditor.putString(EXTRA_ACCOUNT_NAME, authParams.getAccountName());
+        preferenceEditor.putString(EXTRA_CREDENTIAL, authParams.getCredential());
+        preferenceEditor.commit();
+
+        // Create background tasks (and add to alarm if not already running)
+        Context appContext = getApplicationContext();
+        Intent intent;
+        PendingIntent pendingIntent;
+        Long timeInterval;
+        AlarmManager alarmMgr = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+
+        // Create account,groups,peers task
+        timeInterval = AlarmManager.INTERVAL_HALF_HOUR;
+        intent = new Intent(appContext, DistortBackgroundService.class);
+        intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_SECONDARY_SERVICES);
+        pendingIntent = PendingIntent.getService(appContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
+        DistortBackgroundService.startActionScheduleSecondaryServices(appContext);
+
+        // Create conversations,messages task, higher frequency
+        timeInterval = 180000L;
+        intent = new Intent(appContext, DistortBackgroundService.class);
+        intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_PRIMARY_SERVICES);
+        pendingIntent = PendingIntent.getService(appContext, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
+        DistortBackgroundService.startActionSchedulePrimaryServices(appContext);
+
+        intent = new Intent(ctx, GroupsActivity.class);
+        startActivity(intent);
+    }
+
+    // Allow receiving finished account creation form
+    public void OnAccountCreationFinished(@Nullable DistortAuthParams account) {
+        View loginForm = findViewById(R.id.login_form);
+        loginForm.setVisibility(View.VISIBLE);
+
+        if(account != null) {
+            LaunchMainApplication(account);
+        }
+    }
+
     /**
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
@@ -248,9 +307,11 @@ public class LoginActivity extends AppCompatActivity {
         private String mAddress;
         private String mProtocol;
         private String mPeerId;
-        private String mAccount;
+        private String mAccountName;
         private String mToken;
         private String mErrorString;
+
+        DistortAuthParams mAuthParams;
 
         // Error codes:
         // 0 - success
@@ -268,7 +329,7 @@ public class LoginActivity extends AppCompatActivity {
                 mAddress += "/";
             }
 
-            mAccount = account;
+            mAccountName = account;
             mPassword = password;
 
             mErrorString = "";
@@ -284,16 +345,17 @@ public class LoginActivity extends AppCompatActivity {
 
         private DistortAuthParams generateTokenFromFields() throws DistortJson.DistortException, IOException {
             DistortAuthParams authParams = new DistortAuthParams();
+            authParams.setHomeserverAddress(mAddress);
 
-            if(mAccount != null && mAccount.length() > 0) {
-                authParams.setAccountName(mAccount);
+            if(mAccountName != null && mAccountName.length() > 0) {
+                authParams.setAccountName(mAccountName);
             }
 
             // First discover IPFS Peer ID
             String ipfsURL = mAddress + "ipfs";
 
             URL homeserverEndpoint = new URL(ipfsURL);
-            Matcher matcher = IS_ADDRESS_PATTERN.matcher(mAddress);
+            Matcher matcher = DistortAuthParams.IS_ADDRESS_PATTERN.matcher(mAddress);
             matcher.find();
 
             DistortJson.ResponseString response;
@@ -303,14 +365,14 @@ public class LoginActivity extends AppCompatActivity {
 
                 HttpsURLConnection myConnection;
                 myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetMessageStringFromURL(myConnection, authParams);
+                response = DistortJson.getMessageStringFromURL(myConnection, null);
             } else {
                 mProtocol = DistortAuthParams.PROTOCOL_HTTP;
                 authParams.setHomeserverProtocol(mProtocol);
 
                 HttpURLConnection myConnection;
                 myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetMessageStringFromURL(myConnection, authParams);
+                response = DistortJson.getMessageStringFromURL(myConnection, null);
             }
 
             mPeerId = response.mResponse;
@@ -318,7 +380,7 @@ public class LoginActivity extends AppCompatActivity {
 
             // Attempt to generate token from password
             PKCS5S2ParametersGenerator generator = new PKCS5S2ParametersGenerator(new SHA256Digest());
-            generator.init(mPassword.getBytes(), mPeerId.getBytes(), 1000);
+            generator.init(mPassword.getBytes(StandardCharsets.UTF_8), mPeerId.getBytes(StandardCharsets.UTF_8), 1000);
             KeyParameter passwordBasedKey = (KeyParameter)generator.generateDerivedMacParameters(256);
             mToken = new String(Base64.encode(passwordBasedKey.getKey()), Charset.forName("UTF-8"));
             authParams.setCredential(mToken);
@@ -331,13 +393,13 @@ public class LoginActivity extends AppCompatActivity {
         protected Boolean doInBackground(Void... params) {
             mErrorString = "";
             mErrorCode = 0;
-            DistortAuthParams authParams;
+            mAuthParams = null;
 
             // Attempt authentication against a network service.
             try {
                 if(mToken == null || mToken.length() == 0) {
                     try {
-                        authParams = generateTokenFromFields();
+                        mAuthParams = generateTokenFromFields();
                     } catch (MalformedURLException e) {
                         // Since we assured URL is valid with regex, only occurs if DNS resolution fails
                         mErrorString = getString(R.string.error_resolve_address);
@@ -362,23 +424,23 @@ public class LoginActivity extends AppCompatActivity {
                     mAddress = sharedPref.getString(EXTRA_HOMESERVER, null);
                     mProtocol = sharedPref.getString(EXTRA_HOMESERVER_PROTOCOL, null);
                     mPeerId = sharedPref.getString(EXTRA_PEER_ID, null);
-                    mAccount = sharedPref.getString(EXTRA_ACCOUNT_NAME, null);
+                    mAccountName = sharedPref.getString(EXTRA_ACCOUNT_NAME, null);
 
-                    authParams = new DistortAuthParams(mAddress, mProtocol, mPeerId, mAccount, mToken);
+                    mAuthParams = new DistortAuthParams(mAddress, mProtocol, mPeerId, mAccountName, mToken);
                 }
 
                 // Create string to test authentication parameters
-                String loginURL = mAddress + "groups";
+                String loginURL = mAddress + "account";
 
                 URL homeserverEndpoint = new URL(loginURL);
                 if(DistortAuthParams.PROTOCOL_HTTPS.equals(mProtocol)) {
                     HttpsURLConnection myConnection;
                     myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                    DistortJson.GetJSONFromURL(myConnection, authParams);
+                    DistortJson.getJSONFromURL(myConnection, mAuthParams);
                 } else {
                     HttpURLConnection myConnection;
                     myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                    DistortJson.GetJSONFromURL(myConnection, authParams);
+                    DistortJson.getJSONFromURL(myConnection, mAuthParams);
                 }
 
                 // Return true only if authentication was successful
@@ -422,42 +484,7 @@ public class LoginActivity extends AppCompatActivity {
             showProgress(false);
 
             if (success) {
-                // Save login  credentials for later ease
-                SharedPreferences sharedPref = mContext.getSharedPreferences(
-                        getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
-                SharedPreferences.Editor preferenceEditor = sharedPref.edit();
-                preferenceEditor.putString(EXTRA_HOMESERVER, mAddress);
-                preferenceEditor.putString(EXTRA_HOMESERVER_PROTOCOL, mProtocol);
-                preferenceEditor.putString(EXTRA_PEER_ID, mPeerId);
-                preferenceEditor.putString(EXTRA_ACCOUNT_NAME, mAccount);
-                preferenceEditor.putString(EXTRA_CREDENTIAL, mToken);
-                preferenceEditor.commit();
-
-                // Create background tasks (and add to alarm if not already running)
-                Context appContext = getApplicationContext();
-                Intent intent;
-                PendingIntent pendingIntent;
-                Long timeInterval;
-                AlarmManager alarmMgr = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
-
-                // Create account,groups,peers task
-                timeInterval = AlarmManager.INTERVAL_HALF_HOUR;
-                intent = new Intent(appContext, DistortBackgroundService.class);
-                intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_SECONDARY_SERVICES);
-                pendingIntent = PendingIntent.getService(appContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-                alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
-                DistortBackgroundService.startActionScheduleSecondaryServices(appContext);
-
-                // Create conversations,messages task, higher frequency
-                timeInterval = 180000L;
-                intent = new Intent(appContext, DistortBackgroundService.class);
-                intent.setAction(DistortBackgroundService.ACTION_SCHEDULE_PRIMARY_SERVICES);
-                pendingIntent = PendingIntent.getService(appContext, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-                alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + timeInterval, timeInterval, pendingIntent);
-                DistortBackgroundService.startActionSchedulePrimaryServices(appContext);
-
-                intent = new Intent(mContext, GroupsActivity.class);
-                startActivity(intent);
+                LaunchMainApplication(mAuthParams);
             } else {
                 // To first letter uppercase
                 mErrorString = mErrorString.substring(0, 1).toUpperCase() + mErrorString.substring(1);

@@ -47,15 +47,7 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        // Use shared preferences to fetch authorization params
-        SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
-        mLoginParams = new DistortAuthParams();
-        mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
-        mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
-        mLoginParams.setPeerId(sharedPref.getString(DistortAuthParams.EXTRA_PEER_ID, null));
-        mLoginParams.setAccountName(sharedPref.getString(DistortAuthParams.EXTRA_ACCOUNT_NAME, null));
-        mLoginParams.setCredential(sharedPref.getString(DistortAuthParams.EXTRA_CREDENTIAL, null));
+        mLoginParams = DistortAuthParams.getAuthenticationParams(this);
         mAccount = DistortBackgroundService.getLocalAccount(this);
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.settingsToolbar);
@@ -69,10 +61,14 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
                 HashMap<String, String> p = new HashMap<>();
                 p.put("accountName", mLoginParams.getAccountName());
                 p.put("enabled", String.valueOf(mEnabledToggle.isChecked()));
-                mUpdateAccountTask = new UpdateAccountTask(mActivity, p);
+                mUpdateAccountTask = new UpdateAccountTask(p);
                 mUpdateAccountTask.execute();
             }
         });
+        if(mAccount.getAccountName().equals("root")) {
+            mEnabledToggle.setEnabled(false);
+        }
+
 
         Integer selectedItem = 0;
         HashMap<String, DistortGroup> groupMap = DistortBackgroundService.getLocalGroups(this);
@@ -85,7 +81,7 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
             mGroups.add(groupEntry.getValue());
             mGroupNames.add(groupEntry.getValue().getName());
 
-            if(groupEntry.getValue().getId().equals(mAccount.getActiveGroupId())) {
+            if(groupEntry.getValue().getName().equals(mAccount.getActiveGroup())) {
                 selectedItem = i;
             }
             i++;
@@ -107,9 +103,9 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
                     // Remove active group
                     p.put("activeGroup", "");
                 } else {
-                    p.put("activeGroup", mGroups.get(position).getId());
+                    p.put("activeGroup", mGroups.get(position).getName());
                 }
-                mUpdateAccountTask = new UpdateAccountTask(mActivity, p);
+                mUpdateAccountTask = new UpdateAccountTask(p);
                 mUpdateAccountTask.execute();
             }
 
@@ -137,7 +133,7 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
         HashMap<String, String> p = new HashMap<>();
         p.put("accountName", mLoginParams.getAccountName());
         p.put("authToken", authToken);
-        mUpdateAccountTask = new UpdateAccountTask(mActivity, p);
+        mUpdateAccountTask = new UpdateAccountTask(p);
         mUpdateAccountTask.execute();
     }
 
@@ -146,12 +142,10 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
      */
     public class UpdateAccountTask extends AsyncTask<Void, Void, Boolean> {
 
-        private Activity mActivity;
         private String mErrorString;
         private HashMap<String, String> mBodyParams;
 
-        UpdateAccountTask(Activity activity, HashMap<String, String> bodyParams) {
-            mActivity = activity;
+        UpdateAccountTask(HashMap<String, String> bodyParams) {
             mErrorString = "";
             mBodyParams = bodyParams;
         }
@@ -169,11 +163,11 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
                 if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                     HttpsURLConnection myConnection;
                     myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.PutBodyGetJSONFromURL(myConnection, mLoginParams, mBodyParams);
+                    response = DistortJson.putBodyGetJSONFromURL(myConnection, mLoginParams, mBodyParams);
                 } else {
                     HttpURLConnection myConnection;
                     myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.PutBodyGetJSONFromURL(myConnection, mLoginParams, mBodyParams);
+                    response = DistortJson.putBodyGetJSONFromURL(myConnection, mLoginParams, mBodyParams);
                 }
                 response.close();
 
@@ -218,6 +212,7 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
                 DistortBackgroundService.startActionFetchAccount(context);
                 DistortBackgroundService.startActionFetchGroups(context);
             } else {
+                Log.e("UPDATE-ACCOUNT", mErrorString);
                 // TODO: Reset relevant fields on error
                 // Reset enable-status on error
                 mEnabledToggle.setChecked(mAccount.getEnabled());

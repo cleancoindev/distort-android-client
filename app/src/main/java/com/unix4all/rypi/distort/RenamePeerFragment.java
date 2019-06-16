@@ -16,6 +16,7 @@ public class RenamePeerFragment extends DialogFragment {
 
     private String mPeerId;
     private String mAccountName;
+    private @Nullable String mNickname;
 
     public interface OnRenamePeerFragmentListener {
         void OnRenamePeer(String nickname, String peerId, String accountName);
@@ -25,12 +26,13 @@ public class RenamePeerFragment extends DialogFragment {
         // Required empty public constructor
     }
 
-    public static RenamePeerFragment newInstance(String peerId, String accountName) {
+    public static RenamePeerFragment newInstance(String peerId, String accountName, @Nullable String nickname) {
         RenamePeerFragment f = new RenamePeerFragment();
 
         Bundle bundle = new Bundle();
         bundle.putString("peerId", peerId);
         bundle.putString("accountName", accountName);
+        bundle.putString("nickname", nickname);
         f.setArguments(bundle);
 
         return f;
@@ -42,6 +44,7 @@ public class RenamePeerFragment extends DialogFragment {
         Bundle b = this.getArguments();
         mPeerId = b.getString("peerId");
         mAccountName = b.getString("accountName");
+        mNickname = b.getString("nickname");
 
         // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_rename_peer, container, false);
@@ -52,6 +55,10 @@ public class RenamePeerFragment extends DialogFragment {
         super.onViewCreated(view, savedInstanceState);
 
         mNewName = view.findViewById(R.id.renamePeerText);
+        if(mNickname != null) {
+            mNewName.setText(mNickname);
+        }
+
         mRenameButton = view.findViewById(R.id.renamePeerButton);
         mRenameButton.setOnClickListener(new View.OnClickListener() {
             @Override

@@ -101,14 +101,13 @@ public class DistortBackgroundService extends IntentService {
     public static @Nullable DistortAccount getLocalAccount(Context context) {
         SharedPreferences sharedPref = context.getSharedPreferences(
                 context.getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
-        String id = sharedPref.getString("id", null);
         String peerId = sharedPref.getString("peerId", null);
         String accountName = sharedPref.getString("accountName", null);
         Boolean enabled = sharedPref.getBoolean("enabled", false);
-        String activeGroupId = sharedPref.getString("activeGroupId", null);
+        String activeGroup = sharedPref.getString("activeGroup", null);
 
-        if(id != null && peerId != null && accountName != null) {
-            return new DistortAccount(id, peerId, accountName, enabled, activeGroupId);
+        if(peerId != null && accountName != null && enabled != null) {
+            return new DistortAccount(peerId, accountName, enabled, activeGroup);
         } else {
             return null;
         }
@@ -137,7 +136,7 @@ public class DistortBackgroundService extends IntentService {
         }
         return peerSet;
     }
-    // Hashmap is keyed by group database-ID
+    // Hashmap is keyed by group name
     public static HashMap<String, DistortGroup> getLocalGroups(Context context) {
         HashMap<String, DistortGroup> groupSet = new HashMap<>();
         try {
@@ -152,7 +151,7 @@ public class DistortBackgroundService extends IntentService {
             json.beginArray();
             while(json.hasNext()) {
                 DistortGroup group = DistortGroup.readJson(json);
-                groupSet.put(group.getId(), group);
+                groupSet.put(group.getName(), group);
             }
             json.endArray();
             json.close();
@@ -161,7 +160,7 @@ public class DistortBackgroundService extends IntentService {
         }
         return groupSet;
     }
-    // Hashmap is keyed by conversation database-ID
+    // Hashmap is keyed by conversation unique label, 'group:' + peerFullAddress + [':' + accountName]
     public static HashMap<String, DistortConversation> getLocalConversations(Context context) {
         HashMap<String, DistortConversation> conversationSet = new HashMap<>();
         try {
@@ -172,7 +171,7 @@ public class DistortBackgroundService extends IntentService {
             json.beginArray();
             while(json.hasNext()) {
                 DistortConversation c = DistortConversation.readJson(json, null);
-                conversationSet.put(c.getId(), c);
+                conversationSet.put(c.getUniqueLabel(), c);
             }
             json.endArray();
             json.close();
@@ -181,15 +180,15 @@ public class DistortBackgroundService extends IntentService {
         }
         return conversationSet;
     }
-    public static ArrayList<DistortMessage> getLocalConversationMessages(Context context, String conversationDatabaseId) {
+    public static ArrayList<DistortMessage> getLocalConversationMessages(Context context, String conversationLabel) {
         ArrayList<DistortMessage> messages = new ArrayList<>();
         HashMap<Integer, DistortMessage> indexMap = new HashMap<>();
-        if(conversationDatabaseId == null || conversationDatabaseId.isEmpty()) {
+        if(conversationLabel == null || conversationLabel.isEmpty()) {
             return messages;
         }
 
         try {
-            FileInputStream fis = context.openFileInput(MESSAGES_FILE_NAME_START + conversationDatabaseId + JSON_EXT);
+            FileInputStream fis = context.openFileInput(MESSAGES_FILE_NAME_START + conversationLabel + JSON_EXT);
             JsonReader json = new JsonReader(new InputStreamReader(fis));
 
             if(!json.peek().equals(JsonToken.BEGIN_ARRAY)) {
@@ -231,11 +230,10 @@ public class DistortBackgroundService extends IntentService {
     private void saveAccountToLocal(DistortAccount account) {
         SharedPreferences sharedPref = getSharedPreferences(getString(R.string.account_preferences_key), Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString("id", account.getId());
         editor.putString("peerId", account.getPeerId());
         editor.putString("accountName", account.getAccountName());
         editor.putBoolean("enabled", account.getEnabled());
-        editor.putString("activeGroupId", account.getActiveGroupId());
+        editor.putString("activeGroup", account.getActiveGroup());
         editor.apply();
     }
     // Hashmap keyed by peer full-address
@@ -289,9 +287,9 @@ public class DistortBackgroundService extends IntentService {
             reportError(e.getMessage());
         }
     }
-    private void saveConversationMessagesToLocal(String conversationDatabaseId, ArrayList<DistortMessage> messages) {
+    private void saveConversationMessagesToLocal(String conversationLabel, ArrayList<DistortMessage> messages) {
         try {
-            FileOutputStream fos = this.openFileOutput(MESSAGES_FILE_NAME_START + conversationDatabaseId + JSON_EXT, Context.MODE_PRIVATE);
+            FileOutputStream fos = this.openFileOutput(MESSAGES_FILE_NAME_START + conversationLabel + JSON_EXT, Context.MODE_PRIVATE);
             JsonWriter json = new JsonWriter(new OutputStreamWriter(fos));
 
             // Add each message with this peer in this group
@@ -326,11 +324,11 @@ public class DistortBackgroundService extends IntentService {
         intent.setAction(ACTION_FETCH_PEERS);
         context.startService(intent);
     }
-    public static void startActionFetchMessages(Context context, String conversationDatabaseId) {
+    public static void startActionFetchMessages(Context context, String conversationLabel) {
         Intent intent = new Intent(context, DistortBackgroundService.class);
         intent.setAction(ACTION_FETCH_MESSAGES);
 
-        intent.putExtra("conversationDatabaseId", conversationDatabaseId);
+        intent.putExtra("conversationLabel", conversationLabel);
         context.startService(intent);
     }
     public static void startActionFetchGroups(Context context) {
@@ -338,11 +336,11 @@ public class DistortBackgroundService extends IntentService {
         intent.setAction(ACTION_FETCH_GROUPS);
         context.startService(intent);
     }
-    public static void startActionFetchConversations(Context context, String groupDatabaseId) {
+    public static void startActionFetchConversations(Context context, String groupName) {
         Intent intent = new Intent(context, DistortBackgroundService.class);
         intent.setAction(ACTION_FETCH_CONVERSATIONS);
 
-        intent.putExtra("groupDatabaseId", groupDatabaseId);
+        intent.putExtra("groupName", groupName);
 
         context.startService(intent);
     }
@@ -369,7 +367,6 @@ public class DistortBackgroundService extends IntentService {
             final String action = intent.getAction();
             if (ACTION_FETCH_ACCOUNT.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Fetch Account...");
-
                 handleActionFetchAccount();
                 Log.i("DISTORT-SERVICE", "Finished Fetch Account.");
             } else if (ACTION_FETCH_PEERS.equals(action)) {
@@ -378,9 +375,8 @@ public class DistortBackgroundService extends IntentService {
                 Log.i("DISTORT-SERVICE", "Finished Fetch Peers.");
             } else if (ACTION_FETCH_MESSAGES.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Fetch Messages...");
-
-                String conversationDatabaseId = intent.getStringExtra("conversationDatabaseId");
-                handleActionFetchConversationMessages(conversationDatabaseId);
+                String conversationLabel = intent.getStringExtra("conversationLabel");
+                handleActionFetchConversationMessages(conversationLabel);
                 Log.i("DISTORT-SERVICE", "Finished Fetch Messages.");
             } else if(ACTION_FETCH_GROUPS.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Fetch Groups...");
@@ -389,8 +385,8 @@ public class DistortBackgroundService extends IntentService {
             } else if(ACTION_FETCH_CONVERSATIONS.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Fetch Conversations...");
 
-                String groupDatabaseId = intent.getStringExtra("groupDatabaseId");
-                handleActionFetchGroupConversations(groupDatabaseId);
+                String groupName = intent.getStringExtra("groupName");
+                handleActionFetchGroupConversations(groupName);
                 Log.i("DISTORT-SERVICE", "Finished Fetch Conversations.");
             } else if(ACTION_SCHEDULE_PRIMARY_SERVICES.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Primary Service Scheduling...");
@@ -416,11 +412,11 @@ public class DistortBackgroundService extends IntentService {
             if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                 HttpsURLConnection myConnection;
                 myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             } else {
                 HttpURLConnection myConnection;
                 myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             }
 
             // Read account object
@@ -435,10 +431,11 @@ public class DistortBackgroundService extends IntentService {
         } catch (DistortJson.DistortException e) {
             // TODO: Base message off of response codes
             reportError(e.getMessage());
-            Log.e("FETCH-ACCOUNT", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+            e.printStackTrace();
+            Log.e("FETCH-ACCOUNT", String.valueOf(e.getResponseCode()));
         } catch (IOException e) {
             reportError(e.getMessage());
-            Log.e("FETCH-ACCOUNT", e.getMessage());
+            e.printStackTrace();
         }
 
         return account;
@@ -453,11 +450,11 @@ public class DistortBackgroundService extends IntentService {
             if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                 HttpsURLConnection myConnection;
                 myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             } else {
                 HttpURLConnection myConnection;
                 myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             }
 
             // Read all groups
@@ -477,10 +474,11 @@ public class DistortBackgroundService extends IntentService {
         } catch (DistortJson.DistortException e) {
             // TODO: Base message off of response codes
             reportError(e.getMessage());
-            Log.e("FETCH-PEERS", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+            e.printStackTrace();
+            Log.e("FETCH-PEERS", String.valueOf(e.getResponseCode()));
         } catch (IOException e) {
             reportError(e.getMessage());
-            Log.e("FETCH-PEERS", e.getMessage());
+            e.printStackTrace();
         }
         return peers;
     }
@@ -488,20 +486,20 @@ public class DistortBackgroundService extends IntentService {
     /**
      * Handle action fetch messages in the provided background thread.
      */
-    private ArrayList<DistortMessage> handleActionFetchConversationMessages(String conversationId) {
+    private ArrayList<DistortMessage> handleActionFetchConversationMessages(String conversationLabel) {
         // Load conversations from storage
         HashMap<String, DistortConversation> conversations = getLocalConversations(this);
-        final DistortConversation localConversation = conversations.get(conversationId);
+        final DistortConversation localConversation = conversations.get(conversationLabel);
 
         // Store previously retrieved messages to append to
-        ArrayList<DistortMessage> existingMessages = new ArrayList<>();
+        ArrayList<DistortMessage> existingMessages;
 
         // Find existing copy of conversation in local storage
         Integer existingHeight;
         Integer startIndex;
         if(localConversation != null) {
             // Get known conversation messages and determine earliest message with volatile state (enqueued)
-            ArrayList<DistortMessage> storedMessages = getLocalConversationMessages(this, conversationId);
+            ArrayList<DistortMessage> storedMessages = getLocalConversationMessages(this, conversationLabel);
             if(storedMessages.size() == 0) {
                 startIndex = 0;
                 existingHeight = 0;
@@ -535,14 +533,14 @@ public class DistortBackgroundService extends IntentService {
 
         // Load groups from storage
         HashMap<String, DistortGroup> groups = getLocalGroups(this);
-        String groupDatabaseId = localConversation.getGroupId();
-        if(groups == null || groups.get(groupDatabaseId) == null) {
-            String errorString = "Group ID:" + groupDatabaseId + " is not known locally";
+        String groupName = localConversation.getGroup();
+        if(groups == null || groups.get(groupName) == null) {
+            String errorString = "Group:" + groupName + " is not known locally";
             reportError(errorString);
             Log.e("FETCH-MESSAGES", errorString);
             return existingMessages;
         }
-        DistortGroup group = groups.get(groupDatabaseId);
+        DistortGroup group = groups.get(groupName);
 
         Log.d("FETCH-MESSAGES", "Fetching messages from group: " + group.getName() + ", peer: " + localConversation.getFriendlyName());
 
@@ -551,21 +549,21 @@ public class DistortBackgroundService extends IntentService {
         try {
             JsonReader response = null;
             String url = mLoginParams.getHomeserverAddress() + "groups/" + Uri.encode(group.getName()) + "/" + String.valueOf(startIndex);
+
+            HashMap<String, String> queryParams = new HashMap<>();
+            queryParams.put("peerId", localConversation.getPeerId());
+            queryParams.put("accountName", localConversation.getAccountName());
+
+            url += DistortJson.getQueryString(queryParams);
             URL homeserverEndpoint = new URL(url);
             if (DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                 HttpsURLConnection myConnection;
                 myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                myConnection.setRequestProperty("conversationpeerid", localConversation.getPeerId());
-                myConnection.setRequestProperty("conversationaccountname", localConversation.getAccountName());
-
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             } else {
                 HttpURLConnection myConnection;
                 myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                myConnection.setRequestProperty("conversationpeerid", localConversation.getPeerId());
-                myConnection.setRequestProperty("conversationaccountname", localConversation.getAccountName());
-
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             }
 
             // Read all messages in messages and out messages
@@ -575,9 +573,9 @@ public class DistortBackgroundService extends IntentService {
             while (response.hasNext()) {
                 String key = response.nextName();
                 if (key.equals("in")) {
-                    inMessages = InMessage.readArrayJsonForConversation(response, conversationId);
+                    inMessages = InMessage.readArrayJsonForConversation(response);
                 } else if (key.equals("out")) {
-                    outMessages = OutMessage.readArrayJsonForConversation(response, conversationId);
+                    outMessages = OutMessage.readArrayJsonForConversation(response);
                 } else {
                     response.skipValue();
                 }
@@ -621,7 +619,7 @@ public class DistortBackgroundService extends IntentService {
             }
 
             // Save messages
-            saveConversationMessagesToLocal(conversationId, existingMessages);
+            saveConversationMessagesToLocal(conversationLabel, existingMessages);
 
             // Let know about the successful service
             SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
@@ -633,7 +631,7 @@ public class DistortBackgroundService extends IntentService {
                 // Broadcast to messaging
                 Intent intent = new Intent();
                 intent.setAction(ACTION_FETCH_MESSAGES);
-                intent.putExtra("conversationDatabaseId", conversationId);
+                intent.putExtra("conversationLabel", conversationLabel);
 
                 if(updatedMessages.size() > 0) {
                     // Store updated messages to string for fast refreshes
@@ -657,8 +655,8 @@ public class DistortBackgroundService extends IntentService {
                 intent.putExtra("icon", localConversation.getFriendlyName().substring(0, 1));
                 intent.putExtra("peerId", localConversation.getPeerId());
                 intent.putExtra("accountName", localConversation.getAccountName());
-                intent.putExtra("groupDatabaseId", groupDatabaseId);
-                intent.putExtra("conversationDatabaseId", conversationId);
+                intent.putExtra("groupName", groupName);
+                intent.putExtra("conversationLabel", conversationLabel);
                 PendingIntent pIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 
                 // Notification values
@@ -672,14 +670,14 @@ public class DistortBackgroundService extends IntentService {
                 NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     int importance = NotificationManager.IMPORTANCE_HIGH;
-                    NotificationChannel notificationChannel = notificationManager.getNotificationChannel(conversationId);
+                    NotificationChannel notificationChannel = notificationManager.getNotificationChannel(conversationLabel);
                     if (notificationChannel == null) {
-                        notificationChannel = new NotificationChannel(conversationId, localConversation.getFullAddress(), importance);
+                        notificationChannel = new NotificationChannel(conversationLabel, localConversation.getFullAddress(), importance);
                         notificationChannel.setLightColor(Color.GREEN);
                         notificationChannel.enableVibration(true);
                         notificationManager.createNotificationChannel(notificationChannel);
                     }
-                    builder = new NotificationCompat.Builder(context, conversationId);
+                    builder = new NotificationCompat.Builder(context, conversationLabel);
                     builder.setContentTitle(title)                            // required
                             .setSmallIcon(R.drawable.ic_message_notification)   // required
                             .setContentText(text) // required
@@ -689,7 +687,7 @@ public class DistortBackgroundService extends IntentService {
                             .setLights(0xFF00FF00, 500, 1500)
                             .setVibrate(new long[]{100, 300, 300, 400});
                 } else {
-                    builder = new NotificationCompat.Builder(context, conversationId);
+                    builder = new NotificationCompat.Builder(context, conversationLabel);
                     builder.setContentTitle(title)                            // required
                             .setSmallIcon(R.drawable.ic_message_notification)   // required
                             .setContentText(text) // required
@@ -707,10 +705,11 @@ public class DistortBackgroundService extends IntentService {
         } catch (DistortJson.DistortException e) {
             // TODO: Base message off of response codes
             reportError(e.getMessage());
-            Log.e("FETCH-MESSAGES", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
+            e.printStackTrace();
+            Log.e("FETCH-MESSAGES", String.valueOf(e.getResponseCode()));
         } catch (IOException e) {
             reportError(e.getMessage());
-            Log.e("FETCH-MESSAGES", e.getMessage());
+            e.printStackTrace();
         }
         return existingMessages;
     }
@@ -725,11 +724,11 @@ public class DistortBackgroundService extends IntentService {
             if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                 HttpsURLConnection myConnection;
                 myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             } else {
                 HttpURLConnection myConnection;
                 myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             }
 
             // Read all groups
@@ -737,7 +736,7 @@ public class DistortBackgroundService extends IntentService {
             while(response.hasNext()) {
                 DistortGroup g = DistortGroup.readJson(response);
 
-                groups.put(g.getId(), g);
+                groups.put(g.getName(), g);
             }
             response.endArray();
             response.close();
@@ -750,24 +749,24 @@ public class DistortBackgroundService extends IntentService {
         } catch (DistortJson.DistortException e) {
             // TODO: Base message off of response codes
             reportError(e.getMessage());
-            Log.e("FETCH-GROUPS", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
-
+            e.printStackTrace();
+            Log.e("FETCH-GROUPS", String.valueOf(e.getResponseCode()));
         } catch (IOException e) {
             reportError(e.getMessage());
-            Log.e("FETCH-GROUPS", e.getMessage());
+            e.printStackTrace();
         }
         return groups;
     }
 
-    private HashMap<String, DistortConversation> handleActionFetchGroupConversations(String groupDatabaseId) {
+    private HashMap<String, DistortConversation> handleActionFetchGroupConversations(String groupName) {
         // Load groups from storage
         HashMap<String, DistortGroup> groups = getLocalGroups(this);
-        if(groups == null || groups.get(groupDatabaseId) == null) {
-            // TODO: Properly return error to caller
-            Log.e("FETCH-CONVERSATIONS", "Group ID:" + groupDatabaseId + " is not known locally");
+        if(groups == null || groups.get(groupName) == null) {
+            String errorStr = "Group:" + groupName + " is not known locally";
+            reportError(errorStr);
             return null;
         }
-        DistortGroup group = groups.get(groupDatabaseId);
+        DistortGroup group = groups.get(groupName);
 
         // Use empty set since conversations may be deleted
         HashMap<String, DistortConversation> conversations = new HashMap<>();
@@ -779,18 +778,18 @@ public class DistortBackgroundService extends IntentService {
             if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                 HttpsURLConnection myConnection;
                 myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             } else {
                 HttpURLConnection myConnection;
                 myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                response = DistortJson.GetJSONFromURL(myConnection, mLoginParams);
+                response = DistortJson.getJSONFromURL(myConnection, mLoginParams);
             }
 
             // Read all groups
             response.beginArray();
             while(response.hasNext()) {
-                DistortConversation c = DistortConversation.readJson(response, group.getId());
-                conversations.put(c.getId(), c);
+                DistortConversation c = DistortConversation.readJson(response, group.getName());
+                conversations.put(c.getUniqueLabel(), c);
             }
             response.endArray();
             response.close();
@@ -803,11 +802,11 @@ public class DistortBackgroundService extends IntentService {
         } catch (DistortJson.DistortException e) {
             // TODO: Base message off of response codes
             reportError(e.getMessage());
-            Log.e("FETCH-CONVERSATIONS", e.getMessage() + " : " + String.valueOf(e.getResponseCode()));
-
+            e.printStackTrace();
+            Log.e("FETCH-CONVERSATIONS", String.valueOf(e.getResponseCode()));
         } catch (IOException e) {
             reportError(e.getMessage());
-            Log.e("FETCH-CONVERSATIONS", e.getMessage());
+            e.printStackTrace();
         }
         return conversations;
     }
@@ -822,15 +821,15 @@ public class DistortBackgroundService extends IntentService {
             for (Map.Entry<String, DistortGroup> group : groups.entrySet()) {
 
                 // Fetch and traverse every conversation in this anonymity group
-                HashMap<String, DistortConversation> conversations = handleActionFetchGroupConversations(group.getValue().getId());
+                HashMap<String, DistortConversation> conversations = handleActionFetchGroupConversations(group.getValue().getName());
                 for (Map.Entry<String, DistortConversation> conversation : conversations.entrySet()) {
                     DistortConversation newConversation = conversation.getValue();
 
                     // Determine if conversation is out-of-date
-                    DistortConversation stored = storedConversations.get(newConversation.getId());
+                    DistortConversation stored = storedConversations.get(newConversation.getUniqueLabel());
 
                     if (stored == null || stored.getLatestStatusChangeDate().compareTo(newConversation.getLatestStatusChangeDate()) != 0) {
-                        handleActionFetchConversationMessages(newConversation.getId());
+                        handleActionFetchConversationMessages(newConversation.getUniqueLabel());
                     }
                 }
             }

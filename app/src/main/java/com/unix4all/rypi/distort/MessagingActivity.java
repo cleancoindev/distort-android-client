@@ -69,8 +69,8 @@ public class MessagingActivity extends AppCompatActivity {
         mIcon.setText(bundle.getString("icon"));
 
         // Find group
-        String groupDatabaseId = bundle.getString("groupDatabaseId");
-        mGroup = getGroupFromLocal(groupDatabaseId);
+        String groupName = bundle.getString("groupName");
+        mGroup = getGroupFromLocal(groupName);
 
         // Setup peer info and get peer object if exists
         mPeerId = bundle.getString("peerId");
@@ -78,16 +78,14 @@ public class MessagingActivity extends AppCompatActivity {
         mFullAddressString = DistortPeer.toFullAddress(mPeerId, mAccountName);
         mPeer = getPeerFromLocal(mFullAddressString);
 
+        // Get conversation object if exists
+        String conversationLabel = DistortConversation.toUniqueLabel(groupName, mFullAddressString);
+        mConversation = getConversationFromLocal(conversationLabel);
+
         // Colour is stored in preferences
         SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.icon_colours_preferences_keys), Context.MODE_PRIVATE);
         ((GradientDrawable) mIcon.getBackground()).setColor(
-                sharedPref.getInt(DistortConversation.toUniqueLabel(groupDatabaseId, mFullAddressString, new String[]{"colour"}), 0));
-
-        // Get conversation object if exists
-        String conversationId = bundle.getString("conversationDatabaseId");
-        if(conversationId != null && !conversationId.isEmpty()) {
-            mConversation = getConversationFromLocal(conversationId);
-        }
+                sharedPref.getInt(DistortConversation.toUniqueLabel(groupName, mFullAddressString, new String[]{"colour"}), 0));
 
         mFriendlyName = bundle.getString("nickname");
         if(mFriendlyName == null) {
@@ -111,30 +109,17 @@ public class MessagingActivity extends AppCompatActivity {
         setContentView(R.layout.activity_messaging);
         Intent thisIntent = getIntent();
 
-        // Use shared preferences to fetch authorization params
-        SharedPreferences sharedPref = this.getSharedPreferences(
-                getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
-        mLoginParams = new DistortAuthParams();
-        mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
-        mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
-        mLoginParams.setPeerId(sharedPref.getString(DistortAuthParams.EXTRA_PEER_ID, null));
-        mLoginParams.setAccountName(sharedPref.getString(DistortAuthParams.EXTRA_ACCOUNT_NAME, null));
-        mLoginParams.setCredential(sharedPref.getString(DistortAuthParams.EXTRA_CREDENTIAL, null));
+        mLoginParams = DistortAuthParams.getAuthenticationParams(this);
 
         // Setup top fields
         mIcon = findViewById(R.id.messagesIcon);
         mName = findViewById(R.id.messagesName);
         mFullAddress = findViewById(R.id.messagesDetails);
 
-        Bundle bundle = thisIntent.getExtras();
-        setConversationParameters(bundle);
-
         // Setup list of message-list properties
         mMessagesView = (RecyclerView) findViewById(R.id.messagesView);
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(MessagingActivity.this, LinearLayoutManager.VERTICAL, false);
         mMessagesView.setLayoutManager(linearLayoutManager);
-        mMessagesAdapter = new MessageAdapter(this, null, mFriendlyName);
-        mMessagesView.setAdapter(mMessagesAdapter);
 
         // Setup other fields
         mSendMessageView = (TextView) findViewById(R.id.sendMessageView);
@@ -153,17 +138,17 @@ public class MessagingActivity extends AppCompatActivity {
     }
 
     // Getting local values
-    private DistortGroup getGroupFromLocal(String groupDatabaseId) {
-        return DistortBackgroundService.getLocalGroups(this).get(groupDatabaseId);
+    private DistortGroup getGroupFromLocal(String groupName) {
+        return DistortBackgroundService.getLocalGroups(this).get(groupName);
     }
-    private DistortConversation getConversationFromLocal(String conversationDatabaseId) {
-        return DistortBackgroundService.getLocalConversations(this).get(conversationDatabaseId);
+    private DistortConversation getConversationFromLocal(String conversationLabel) {
+        return DistortBackgroundService.getLocalConversations(this).get(conversationLabel);
     }
     private DistortPeer getPeerFromLocal(String peerFullAddress) {
         return DistortBackgroundService.getLocalPeers(this).get(peerFullAddress);
     }
-    private ArrayList<DistortMessage> getMessagesFromLocal(String conversationDatabaseId) {
-        return DistortBackgroundService.getLocalConversationMessages(this, conversationDatabaseId);
+    private ArrayList<DistortMessage> getMessagesFromLocal(String conversationLabel) {
+        return DistortBackgroundService.getLocalConversationMessages(this, conversationLabel);
     }
 
     // Handle successful retrieval of groups
@@ -190,10 +175,10 @@ public class MessagingActivity extends AppCompatActivity {
 
     @Override
     protected void onNewIntent(Intent intent) {
-        setConversationParameters(intent.getExtras());
-        mMessagesAdapter = new MessageAdapter(this, null, mFriendlyName);
-        mMessagesView.setAdapter(mMessagesAdapter);
         super.onNewIntent(intent);
+
+        // Update intent parameters
+        setIntent(intent);
     }
 
     @Override
@@ -202,13 +187,18 @@ public class MessagingActivity extends AppCompatActivity {
                 getString(R.string.messaging_preference_key), Context.MODE_PRIVATE);
         SharedPreferences.Editor preferenceEditor = sharedPref.edit();
 
-        // Use group-Id + peer full-address to uniquely identify a conversation,
+        Bundle bundle = getIntent().getExtras();
+        setConversationParameters(bundle);
+        mMessagesAdapter = new MessageAdapter(this, null, mFriendlyName);
+        mMessagesView.setAdapter(mMessagesAdapter);
+
+        // Use group name + peer full-address to uniquely identify a conversation,
         // even before a message has been sent or received
-        preferenceEditor.putString("activeConversation", mGroup.getId() + ":" + mFullAddressString);
+        preferenceEditor.putString("activeConversation", DistortConversation.toUniqueLabel(mGroup.getName(), mFullAddressString));
         preferenceEditor.apply();
 
         if(mConversation != null) {
-            final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getId());
+            final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getUniqueLabel());
             int height = allMessages.size();
             final List<DistortMessage> messages = allMessages.subList(Math.max(height - 20, 0), height);
             for (int i = 0; i < messages.size(); i++) {
@@ -219,7 +209,7 @@ public class MessagingActivity extends AppCompatActivity {
                 mMessagesView.scrollToPosition(position);
             }
 
-            DistortBackgroundService.startActionFetchMessages(this, mConversation.getId());
+            DistortBackgroundService.startActionFetchMessages(this, mConversation.getUniqueLabel());
         }
 
         super.onResume();
@@ -237,7 +227,7 @@ public class MessagingActivity extends AppCompatActivity {
     public class MessageServiceBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            String conversationDatabaseId = intent.getStringExtra("conversationDatabaseId");
+            String conversationLabel = intent.getStringExtra("conversationLabel");
 
             // Parse string for indexes of updated messages
             String updatedMessagesString = intent.getStringExtra("updatedMessages");
@@ -253,9 +243,9 @@ public class MessagingActivity extends AppCompatActivity {
                 updatedMessages[i] = Integer.valueOf(tmpArray[i]);
             }
 
-            if(conversationDatabaseId != null && !conversationDatabaseId.isEmpty()) {
-                mConversation = getConversationFromLocal(conversationDatabaseId);
-                final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getId());
+            if(conversationLabel != null && !conversationLabel.isEmpty()) {
+                mConversation = getConversationFromLocal(conversationLabel);
+                final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getUniqueLabel());
 
                 // Can only update UI from UI thread
                 mActivity.runOnUiThread(new Runnable() {
@@ -280,7 +270,6 @@ public class MessagingActivity extends AppCompatActivity {
     public class SendMessageTask extends AsyncTask<Void, Void, Boolean> {
 
         private Activity mActivity;
-        private String mNewMessageConversationId;
         private String mErrorString;
 
         SendMessageTask(Activity activity) {
@@ -308,11 +297,11 @@ public class MessagingActivity extends AppCompatActivity {
                 if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
                     HttpsURLConnection myConnection;
                     myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.PutBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                    response = DistortJson.putBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
                 } else {
                     HttpURLConnection myConnection;
                     myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
-                    response = DistortJson.PutBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                    response = DistortJson.putBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
                 }
                 if(response == null) {
                     return false;
@@ -320,7 +309,6 @@ public class MessagingActivity extends AppCompatActivity {
 
                 // Read all messages in messages and out messages
                 final OutMessage newMessage = OutMessage.readJson(response);
-                mNewMessageConversationId = newMessage.getConversationId();
                 response.close();
 
                 mActivity.runOnUiThread(new Runnable() {
@@ -357,10 +345,11 @@ public class MessagingActivity extends AppCompatActivity {
             mSendMessageTask = null;
             if (success) {
                 // We just invalidated conversations cache, update
-                DistortBackgroundService.startActionFetchConversations(getApplicationContext(), mGroup.getId());
-                DistortBackgroundService.startActionFetchMessages(getApplicationContext(), mNewMessageConversationId);
+                DistortBackgroundService.startActionFetchConversations(getApplicationContext(), mGroup.getName());
+
+                String newMessageConversationLabel = DistortConversation.toUniqueLabel(mGroup.getName(), mFullAddressString);
+                DistortBackgroundService.startActionFetchMessages(getApplicationContext(), newMessageConversationLabel);
             } else {
-                mMessageEdit.setError(mErrorString);
                 mMessageEdit.setError(mErrorString);
                 Log.e("SEND-MESSAGE", mErrorString);
             }

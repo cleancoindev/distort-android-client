@@ -8,13 +8,11 @@ import java.io.IOException;
 
 // Class representing a group
 public class DistortGroup {
-    private final String mId;
     private String mName;
     private Integer mSubgroupIndex;
 
-    DistortGroup(String name, String id, Integer subgroupIndex) {
+    DistortGroup(String name, Integer subgroupIndex) {
         mName = name;
-        mId = id;
         mSubgroupIndex = subgroupIndex;
     }
 
@@ -30,9 +28,6 @@ public class DistortGroup {
     // Getters
     public String getName() {
         return mName;
-    }
-    public String getId() {
-        return mId;
     }
     public Integer getSubgroupIndex() {
         return mSubgroupIndex;
@@ -52,7 +47,6 @@ public class DistortGroup {
     // Static parsing function
     static DistortGroup readJson(JsonReader json) throws IOException {
         String name = null;
-        String id = null;
         Integer subgroupIndex = null;
 
         // Read all fields from group
@@ -62,8 +56,6 @@ public class DistortGroup {
             String key = json.nextName();
             if(key.equals("name")) {
                 name = json.nextString();
-            } else if(key.equals("_id")) {
-                id = json.nextString();
             } else if(key.equals("subgroupIndex")) {
                 subgroupIndex = json.nextInt();
             } else {
@@ -72,11 +64,11 @@ public class DistortGroup {
         }
         json.endObject();
 
-        if(name != null && id != null && subgroupIndex != null) {
-            Log.d("READ-GROUP", "Group ( " + name + "," + subgroupIndex + "," + id + " )");
-            return new DistortGroup(name, id, subgroupIndex);
+        if(name != null && subgroupIndex != null) {
+            Log.d("READ-GROUP", "Group ( " + name + "," + subgroupIndex + " )");
+            return new DistortGroup(name, subgroupIndex);
         } else {
-            throw new IOException();
+            throw new IOException("Missing group parameters");
         }
     }
 
@@ -85,7 +77,6 @@ public class DistortGroup {
         // Read all fields from group
         json.beginObject();
         json.name("name").value(mName);
-        json.name("_id").value(mId);
         json.name("subgroupIndex").value(mSubgroupIndex);
         json.endObject();
     }
