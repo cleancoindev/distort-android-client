@@ -34,6 +34,7 @@ public class MessagingActivity extends AppCompatActivity {
     private final MessagingActivity mActivity = this;
 
     private DistortAuthParams mLoginParams;
+    private MessageDatabaseHelper mDatabaseHelper;
 
     // Header fields
     private TextView mIcon;
@@ -107,9 +108,9 @@ public class MessagingActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_messaging);
-        Intent thisIntent = getIntent();
 
         mLoginParams = DistortAuthParams.getAuthenticationParams(this);
+        mDatabaseHelper = new MessageDatabaseHelper(this, mLoginParams.getFullAddress());
 
         // Setup top fields
         mIcon = findViewById(R.id.messagesIcon);
@@ -147,8 +148,14 @@ public class MessagingActivity extends AppCompatActivity {
     private DistortPeer getPeerFromLocal(String peerFullAddress) {
         return DistortBackgroundService.getLocalPeers(this).get(peerFullAddress);
     }
-    private ArrayList<DistortMessage> getMessagesFromLocal(String conversationLabel) {
-        return DistortBackgroundService.getLocalConversationMessages(this, conversationLabel);
+    private ArrayList<DistortMessage> getMessagesFromLocal(String conversationLabel, @Nullable Integer startIndex, @Nullable Integer endIndex) {
+        return DistortBackgroundService.getLocalConversationMessages(mDatabaseHelper, conversationLabel, startIndex, endIndex);
+    }
+
+    @Override
+    protected void onDestroy() {
+        mDatabaseHelper.close();
+        super.onDestroy();
     }
 
     // Handle successful retrieval of groups
@@ -198,7 +205,7 @@ public class MessagingActivity extends AppCompatActivity {
         preferenceEditor.apply();
 
         if(mConversation != null) {
-            final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getUniqueLabel());
+            final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getUniqueLabel(), null, null);
             int height = allMessages.size();
             final List<DistortMessage> messages = allMessages.subList(Math.max(height - 20, 0), height);
             for (int i = 0; i < messages.size(); i++) {
@@ -245,7 +252,7 @@ public class MessagingActivity extends AppCompatActivity {
 
             if(conversationLabel != null && !conversationLabel.isEmpty()) {
                 mConversation = getConversationFromLocal(conversationLabel);
-                final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getUniqueLabel());
+                final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getUniqueLabel(), null, null);
 
                 // Can only update UI from UI thread
                 mActivity.runOnUiThread(new Runnable() {

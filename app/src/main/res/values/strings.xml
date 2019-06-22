@@ -155,9 +155,9 @@
     <string name="error_account_already_exists">Specified account already exists</string>
     <string name="error_invalid_signature">Invalid account creation token. \"root\" must sign account name</string>
     <string name="error_no_accounts">There are no accounts using the required IPFS identity</string>
-    <string name="button_sign_text">Sign text</string>
-    <string name="hint_text_to_sign">Enter text to sign</string>
+    <string name="hint_text_to_sign">Name of account to allow creation of</string>
     <string name="title_account_activity">Account</string>
     <string name="title_activity_signing">Signature Creation</string>
     <string name="error_generate_barcode">Failed to generate QR code</string>
+    <string name="button_sign_text">Generate Account-Creation Token</string>
 </resources>

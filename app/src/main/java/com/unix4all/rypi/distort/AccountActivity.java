@@ -53,15 +53,21 @@ public class AccountActivity extends AppCompatActivity {
             }
         });
 
-        final Activity self = this;
         mOpenSignDialogButton = findViewById(R.id.openSignDialogButton);
-        mOpenSignDialogButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(self, SigningActivity.class);
-                self.startActivity(intent);
-            }
-        });
+        if(mLoginParams.getAccountName().equals("root")) {
+            mOpenSignDialogButton.setVisibility(View.VISIBLE);
+
+            final Activity self = this;
+            mOpenSignDialogButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(self, SigningActivity.class);
+                    self.startActivity(intent);
+                }
+            });
+        } else {
+            mOpenSignDialogButton.setVisibility(View.GONE);
+        }
 
         mWaitingText = findViewById(R.id.waitingText);
     }

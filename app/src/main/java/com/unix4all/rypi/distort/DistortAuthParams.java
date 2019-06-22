@@ -56,7 +56,7 @@ public class DistortAuthParams {
         loginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
         loginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
         loginParams.setPeerId(sharedPref.getString(DistortAuthParams.EXTRA_PEER_ID, null));
-        loginParams.setAccountName(sharedPref.getString(DistortAuthParams.EXTRA_ACCOUNT_NAME, null));
+        loginParams.setAccountName(sharedPref.getString(DistortAuthParams.EXTRA_ACCOUNT_NAME, "root"));
         loginParams.setCredential(sharedPref.getString(DistortAuthParams.EXTRA_CREDENTIAL, null));
 
         return loginParams;
@@ -74,6 +74,9 @@ public class DistortAuthParams {
     }
     public String getAccountName() {
         return mAccountName;
+    }
+    public String getFullAddress() {
+        return DistortPeer.toFullAddress(mPeerId, mAccountName);
     }
     public String getCredential() {
         return mCredential;

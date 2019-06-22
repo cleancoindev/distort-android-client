@@ -349,6 +349,8 @@ public class LoginActivity extends AppCompatActivity implements CreateAccountFra
 
             if(mAccountName != null && mAccountName.length() > 0) {
                 authParams.setAccountName(mAccountName);
+            } else {
+                authParams.setAccountName("root");
             }
 
             // First discover IPFS Peer ID
@@ -424,7 +426,7 @@ public class LoginActivity extends AppCompatActivity implements CreateAccountFra
                     mAddress = sharedPref.getString(EXTRA_HOMESERVER, null);
                     mProtocol = sharedPref.getString(EXTRA_HOMESERVER_PROTOCOL, null);
                     mPeerId = sharedPref.getString(EXTRA_PEER_ID, null);
-                    mAccountName = sharedPref.getString(EXTRA_ACCOUNT_NAME, null);
+                    mAccountName = sharedPref.getString(EXTRA_ACCOUNT_NAME, "root");
 
                     mAuthParams = new DistortAuthParams(mAddress, mProtocol, mPeerId, mAccountName, mToken);
                 }

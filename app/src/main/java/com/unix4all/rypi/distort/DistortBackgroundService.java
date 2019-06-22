@@ -56,27 +56,30 @@ public class DistortBackgroundService extends IntentService {
     private static final String PEERS_FILE_NAME = "peers.json";
     private static final String GROUPS_FILE_NAME = "groups.json";
     private static final String CONVERSATIONS_FILE_NAME = "conversations.json";
-    private static final String MESSAGES_FILE_NAME_START = "messages-";
-    private static final String JSON_EXT = ".json";
+    private static final AtomicInteger notificationId = new AtomicInteger(0);
 
     private DistortAuthParams mLoginParams;
+    private MessageDatabaseHelper mDatabaseHelper;
 
-    private final static AtomicInteger notificationId = new AtomicInteger(0);
 
     public DistortBackgroundService() {
         super("DistortBackgroundService");
+    }
+
+    @Override
+    public void onDestroy() {
+        if(mDatabaseHelper != null) {
+            mDatabaseHelper.close();
+        }
+
+        super.onDestroy();
     }
 
     private void getAuthenticationParams() {
         // Use shared preferences to fetch authorization params
         SharedPreferences sharedPref = this.getSharedPreferences(
                 this.getResources().getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
-        mLoginParams = new DistortAuthParams();
-        mLoginParams.setHomeserverAddress(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER, null));
-        mLoginParams.setHomeserverProtocol(sharedPref.getString(DistortAuthParams.EXTRA_HOMESERVER_PROTOCOL, null));
-        mLoginParams.setPeerId(sharedPref.getString(DistortAuthParams.EXTRA_PEER_ID, null));
-        mLoginParams.setAccountName(sharedPref.getString(DistortAuthParams.EXTRA_ACCOUNT_NAME, null));
-        mLoginParams.setCredential(sharedPref.getString(DistortAuthParams.EXTRA_CREDENTIAL, null));
+        mLoginParams = DistortAuthParams.getAuthenticationParams(this);
     }
 
     private void reportError(String errorString) {
@@ -90,7 +93,6 @@ public class DistortBackgroundService extends IntentService {
         // Trim and first letter uppercase
         errorString = errorString.trim();
         errorString = errorString.substring(0, 1).toUpperCase() + errorString.substring(1);
-
 
         intent.putExtra("error", errorString);
         LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
@@ -180,47 +182,14 @@ public class DistortBackgroundService extends IntentService {
         }
         return conversationSet;
     }
-    public static ArrayList<DistortMessage> getLocalConversationMessages(Context context, String conversationLabel) {
+    public static ArrayList<DistortMessage> getLocalConversationMessages(MessageDatabaseHelper db, String conversationLabel, @Nullable Integer startIndex, @Nullable Integer endIndex) {
         ArrayList<DistortMessage> messages = new ArrayList<>();
-        HashMap<Integer, DistortMessage> indexMap = new HashMap<>();
-        if(conversationLabel == null || conversationLabel.isEmpty()) {
+        if (conversationLabel == null || conversationLabel.isEmpty()) {
             return messages;
         }
 
-        try {
-            FileInputStream fis = context.openFileInput(MESSAGES_FILE_NAME_START + conversationLabel + JSON_EXT);
-            JsonReader json = new JsonReader(new InputStreamReader(fis));
-
-            if(!json.peek().equals(JsonToken.BEGIN_ARRAY)) {
-                return new ArrayList<>();
-            }
-
-            // Create JSON file and save
-            json.beginArray();
-            while(json.hasNext()) {
-                json.beginObject();
-                DistortMessage m;
-                if(json.nextName().equals(DistortMessage.TYPE_IN)) {
-                    m = InMessage.readJson(json);
-                } else {
-                    m = OutMessage.readJson(json);
-                }
-                indexMap.put(m.getIndex(), m);
-                json.endObject();
-            }
-            json.endArray();
-            json.close();
-        } catch (Exception e) {
-            Log.w("STORED-MESSAGES", "Could not parse conversation messages file");
-        }
-
-        for(int i = 0; i < indexMap.size(); i++) {
-            if(indexMap.containsKey(i)) {
-                messages.add(indexMap.get(i));
-            } else {
-                Log.e("STORED-MESSAGES", "Missing message index: " + i);
-            }
-        }
+        messages = db.getMessagesInRange(conversationLabel, startIndex == null ? 0 : startIndex, endIndex);
+        db.close();
 
         return messages;
     }
@@ -288,28 +257,9 @@ public class DistortBackgroundService extends IntentService {
         }
     }
     private void saveConversationMessagesToLocal(String conversationLabel, ArrayList<DistortMessage> messages) {
-        try {
-            FileOutputStream fos = this.openFileOutput(MESSAGES_FILE_NAME_START + conversationLabel + JSON_EXT, Context.MODE_PRIVATE);
-            JsonWriter json = new JsonWriter(new OutputStreamWriter(fos));
-
-            // Add each message with this peer in this group
-            json.beginArray();
-            for(int i = 0; i < messages.size(); i++) {
-                DistortMessage m = messages.get(i);
-                if(m.getType().equals(DistortMessage.TYPE_IN)) {
-                    json.beginObject().name(DistortMessage.TYPE_IN);
-                    ((InMessage)m).writeJson(json);
-                    json.endObject();
-                } else {
-                    json.beginObject().name(DistortMessage.TYPE_OUT);
-                    ((OutMessage)m).writeJson(json);
-                    json.endObject();
-                }
-            }
-            json.endArray();
-            json.close();
-        } catch (Exception e) {
-            reportError(e.getMessage());
+        // Add each message with this peer in this group
+        for(DistortMessage msg : messages) {
+            mDatabaseHelper.addMessage(conversationLabel, msg);
         }
     }
 
@@ -363,6 +313,15 @@ public class DistortBackgroundService extends IntentService {
 
             // Get stored params
             getAuthenticationParams();
+            String fullAddress = mLoginParams.getFullAddress();
+
+            // Create database connection if not set
+            if(mDatabaseHelper == null) {
+                mDatabaseHelper = new MessageDatabaseHelper(this, fullAddress);
+            } else if(!mDatabaseHelper.getFullAddress().equals(fullAddress)) {
+                mDatabaseHelper.close();
+                mDatabaseHelper = new MessageDatabaseHelper(this, fullAddress);
+            }
 
             final String action = intent.getAction();
             if (ACTION_FETCH_ACCOUNT.equals(action)) {
@@ -384,18 +343,15 @@ public class DistortBackgroundService extends IntentService {
                 Log.i("DISTORT-SERVICE", "Finished Fetch Groups.");
             } else if(ACTION_FETCH_CONVERSATIONS.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Fetch Conversations...");
-
                 String groupName = intent.getStringExtra("groupName");
                 handleActionFetchGroupConversations(groupName);
                 Log.i("DISTORT-SERVICE", "Finished Fetch Conversations.");
             } else if(ACTION_SCHEDULE_PRIMARY_SERVICES.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Primary Service Scheduling...");
-
                 handleActionSchedulePrimaryServices();
                 Log.i("DISTORT-SERVICE", "Finished Primary Service Scheduling.");
             } else if(ACTION_SCHEDULE_SECONDARY_SERVICES.equals(action)) {
                 Log.i("DISTORT-SERVICE", "Starting Secondary Service Scheduling...");
-
                 handleActionScheduleSecondaryServices();
                 Log.i("DISTORT-SERVICE", "Finished Secondary Service Scheduling.");
             }
@@ -499,7 +455,7 @@ public class DistortBackgroundService extends IntentService {
         Integer startIndex;
         if(localConversation != null) {
             // Get known conversation messages and determine earliest message with volatile state (enqueued)
-            ArrayList<DistortMessage> storedMessages = getLocalConversationMessages(this, conversationLabel);
+            ArrayList<DistortMessage> storedMessages = getLocalConversationMessages(mDatabaseHelper, conversationLabel, null, null);
             if(storedMessages.size() == 0) {
                 startIndex = 0;
                 existingHeight = 0;

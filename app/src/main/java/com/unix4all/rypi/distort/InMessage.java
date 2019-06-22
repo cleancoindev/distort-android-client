@@ -77,17 +77,4 @@ public class InMessage extends DistortMessage {
 
         return messages;
     }
-
-    // Write this object to JSON
-    public void writeJson(JsonWriter json) throws IOException {
-        SimpleDateFormat format = new SimpleDateFormat(mongoDateFormat);
-        format.setTimeZone(TimeZone.getTimeZone("UTC"));
-
-        json.beginObject();
-        json.name("verified").value(mVerified);
-        json.name("index").value(getIndex());
-        json.name("message").value(getMessage());
-        json.name("dateReceived").value(format.format(mDateReceived));
-        json.endObject();
-    }
 }

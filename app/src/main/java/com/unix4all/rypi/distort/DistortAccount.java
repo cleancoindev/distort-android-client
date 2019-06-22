@@ -21,11 +21,14 @@ public class DistortAccount {
         mActiveGroup = activeGroup;
     }
 
-   public String getPeerId() {
+    public String getPeerId() {
         return mPeerId;
     }
     public String getAccountName() {
         return mAccountName;
+    }
+    public String getFullAddress() {
+        return DistortPeer.toFullAddress(mPeerId, mAccountName);
     }
     public Boolean getEnabled() {
         return mEnabled;
