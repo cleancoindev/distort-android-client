@@ -29,6 +29,14 @@ if the user manually installs it to their Android device.
     <img src="images/remove_peer_disabled.png" width="300" height="533" />
     <br>
     <br>
+* #### Link Twitter Account
+    <img src="images/link_twitter_account.png" width="300" height="533" />
+    <br>
+    <br>
+* #### Search Twitter Users
+    <img src="images/search_twitter.png" width="300" height="533" />
+    <br>
+    <br>
 * #### Leave Group
     <img src="images/leave_group.png" width="300" height="533" />
     <br>
@@ -37,5 +45,7 @@ if the user manually installs it to their Android device.
     <img src="images/display_qr.png" width="300" height="533" />
     <br>
     <br>
-* #### Read Peer Accounts as QR Codes
-    <img src="images/read_qr.png" width="300" height="533" />
+* #### Add Peers
+    <img src="images/add_peer.png" width="300" height="533" />
+    <br>
+    <br>
