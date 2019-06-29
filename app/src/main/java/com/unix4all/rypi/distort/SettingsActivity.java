@@ -3,6 +3,7 @@ package com.unix4all.rypi.distort;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -20,6 +21,14 @@ import android.widget.CompoundButton;
 import android.widget.Spinner;
 import android.widget.Switch;
 
+import com.twitter.sdk.android.core.Callback;
+import com.twitter.sdk.android.core.Result;
+import com.twitter.sdk.android.core.TwitterAuthConfig;
+import com.twitter.sdk.android.core.TwitterAuthToken;
+import com.twitter.sdk.android.core.TwitterException;
+import com.twitter.sdk.android.core.TwitterSession;
+import com.twitter.sdk.android.core.identity.TwitterLoginButton;
+
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -27,6 +36,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.net.ssl.HttpsURLConnection;
+
+import com.unix4all.rypi.distort.SocialMediaJSON.TwitterPlatform;
 
 public class SettingsActivity extends AppCompatActivity implements ChangePasswordFragment.ChangePasswordListener {
     private final Activity mActivity = this;
@@ -40,7 +51,10 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
     private Switch mEnabledToggle;
     private Spinner mActiveGroupSpinner;
     private Button mChangePswdButton;
+    private TwitterLoginButton mLinkTwitterButton;
+
     private UpdateAccountTask mUpdateAccountTask;
+    private LinkTask mLinkTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,11 +80,14 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
             }
         });
         if(mAccount.getAccountName().equals("root")) {
-            mEnabledToggle.setEnabled(false);
+            // Can't disable root
+            mEnabledToggle.setVisibility(View.GONE);
+        } else {
+            mEnabledToggle.setVisibility(View.VISIBLE);
         }
 
 
-        Integer selectedItem = 0;
+        int selectedItem = 0;
         HashMap<String, DistortGroup> groupMap = DistortBackgroundService.getLocalGroups(this);
         mGroups = new ArrayList<>();
         mGroups.add(null);
@@ -120,6 +137,34 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
                 showChangePassword();
             }
         });
+
+        mLinkTwitterButton = findViewById(R.id.twitterLoginButton);
+        mLinkTwitterButton.setCallback(new Callback<TwitterSession>() {
+            @Override
+            public void success(Result<TwitterSession> result) {
+                TwitterAuthToken auth = result.data.getAuthToken();
+                TwitterPlatform twitter = new TwitterPlatform(result.data.getUserName(), auth.token, auth.secret,
+                        getString(R.string.com_twitter_sdk_android_CONSUMER_KEY),
+                        getString(R.string.com_twitter_sdk_android_CONSUMER_SECRET));
+
+                SharedPreferences sharedPref = getSharedPreferences(
+                        getString(R.string.linked_accounts_preferences_keys), Context.MODE_PRIVATE);
+                SocialMediaJSON socialMedia = SocialMediaJSON.readPreferences(sharedPref, mAccount.getFullAddress());
+                socialMedia.put(twitter);
+                socialMedia.writePreferences(sharedPref, mAccount.getFullAddress());
+                Log.d("LINK-ACCOUNTS", "*Prepare to run async task*");
+
+                mLinkTask = new LinkTask(twitter);
+                mLinkTask.execute();
+            }
+
+            @Override
+            public void failure(TwitterException exception) {
+                Snackbar.make(findViewById(R.id.settingsConstraintLayout), exception.getLocalizedMessage(),
+                        Snackbar.LENGTH_LONG)
+                        .show();
+            }
+        });
     }
 
     public void showChangePassword() {
@@ -135,6 +180,16 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
         p.put("authToken", authToken);
         mUpdateAccountTask = new UpdateAccountTask(p);
         mUpdateAccountTask.execute();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if(requestCode == TwitterAuthConfig.DEFAULT_AUTH_REQUEST_CODE) {
+            // Pass the activity result to the login button.
+            mLinkTwitterButton.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     /**
@@ -179,7 +234,7 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
                 } else if (e.getResponseCode() == 404) {    // Account to update does not exist
                     mErrorString = e.getMessage();
                 } else if (e.getResponseCode() == 500) {
-                    Log.d("UPDATE-ACCOUNT", e.getMessage());
+                    Log.w("UPDATE-ACCOUNT", e.getMessage());
                     mErrorString = getString(R.string.error_server_error);
                 } else {
                     mErrorString = e.getMessage();
@@ -206,6 +261,12 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
 
                     // Wait for write since background needs updated token
                     sp.edit().putString(DistortAuthParams.EXTRA_CREDENTIAL, token).commit();
+
+                    // Display success message (since updating password has the least intuitive feedback)
+                    Snackbar.make(findViewById(R.id.settingsConstraintLayout),
+                        getString(R.string.success_update_password),
+                        Snackbar.LENGTH_LONG)
+                        .show();
                 }
 
                 Context context = getApplicationContext();
@@ -224,4 +285,97 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
         }
     }
 
+    /**
+     * Represents an asynchronous task used to add link to media account
+     */
+    public class LinkTask extends AsyncTask<Void, Void, Boolean> {
+
+        private String mErrorString;
+        private SocialMediaJSON.Platform mPlatform;
+
+        LinkTask(SocialMediaJSON.Platform platform) {
+            Log.d("LINK-ACCOUNT-CONSTRUCTOR", "HERE");
+            mErrorString = "";
+            mPlatform = platform;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            mErrorString = "";
+
+            // Attempt authentication against a network service.
+            try {
+                JsonReader response;
+                String url = mLoginParams.getHomeserverAddress() + "social-media";
+
+                HashMap<String, String> bodyParams = new HashMap<>();
+                bodyParams.put("platform", mPlatform.getPlatform());
+                bodyParams.put("handle", mPlatform.getHandle());
+                bodyParams.put("key", mPlatform.getKey());
+
+                URL homeserverEndpoint = new URL(url);
+                if(DistortAuthParams.PROTOCOL_HTTPS.equals(mLoginParams.getHomeserverProtocol())) {
+                    HttpsURLConnection myConnection;
+                    myConnection = (HttpsURLConnection) homeserverEndpoint.openConnection();
+
+                    Log.d("LINK-ACCOUNT-START", "THERE");
+                    response = DistortJson.putBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                } else {
+                    HttpURLConnection myConnection;
+                    myConnection = (HttpURLConnection) homeserverEndpoint.openConnection();
+
+                    Log.d("LINK-ACCOUNT-START", "THERE");
+                    response = DistortJson.putBodyGetJSONFromURL(myConnection, mLoginParams, bodyParams);
+                }
+
+                Log.d("LINK-ACCOUNT-MID", "THERE");
+
+                response.beginObject();
+                while(response.hasNext()) {
+                    String key = response.nextName();
+                    if(key.equals("message")) {
+                        Log.d("LINK-ACCOUNT", "Response: " + response.nextString());
+                    } else {
+                        response.skipValue();
+                    }
+                }
+                response.endObject();
+                response.close();
+                Log.d("LINK-ACCOUNT", "**Successful account linking**");
+
+                return true;
+            } catch (DistortJson.DistortException e) {
+                if (e.getResponseCode() == 400) {    // Account to update does not exist
+                    mErrorString = e.getMessage();
+                } else if (e.getResponseCode() == 500) {
+                    Log.w("LINK-ACCOUNT", e.getMessage());
+                    mErrorString = getString(R.string.error_server_error);
+                } else {
+                    mErrorString = e.getMessage();
+                }
+                return false;
+            } catch (IOException e) {
+                mErrorString = e.getMessage();
+                return false;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final Boolean success) {
+            mLinkTask = null;
+            if (success) {
+                // Display success message (since updating password has the least intuitive feedback)
+                Snackbar.make(findViewById(R.id.settingsConstraintLayout),
+                        getString(R.string.message_account_link_success),
+                        Snackbar.LENGTH_LONG)
+                        .show();
+            } else {
+                Log.e("LINK-ACCOUNT", mErrorString);
+                // Reset enable-status on error
+                Snackbar.make(findViewById(R.id.settingsConstraintLayout), mErrorString,
+                        Snackbar.LENGTH_LONG)
+                        .show();
+            }
+        }
+    }
 }

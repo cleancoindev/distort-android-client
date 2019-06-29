@@ -115,7 +115,7 @@ public class CreateAccountFragment extends Fragment {
 
                     mAuthParams = null;
                 } else {
-                    mAccountCreationTask = new AccountCreationTask(getActivity(), homeserver, accountName, password, creationToken);
+                    mAccountCreationTask = new AccountCreationTask(homeserver, accountName, password, creationToken);
                     mAccountCreationTask.execute();
                 }
             }
@@ -168,7 +168,6 @@ public class CreateAccountFragment extends Fragment {
 
     // Determine peer account in use and send account-creation request
     private class AccountCreationTask extends AsyncTask<Void, Void, Boolean> {
-        private final Context mContext;
         private String mAddress;
         private String mAccountName;
         private String mPassword;
@@ -187,8 +186,7 @@ public class CreateAccountFragment extends Fragment {
         private int mErrorCode = 0;
         private String mErrorString;
 
-        AccountCreationTask(Context ctx, String address, String account, String password, String creationToken) {
-            mContext = ctx;
+        AccountCreationTask(String address, String account, String password, String creationToken) {
             mAddress = address;
             mAccountName = account;
             mPassword = password;

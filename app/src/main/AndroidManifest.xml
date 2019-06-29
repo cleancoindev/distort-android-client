@@ -14,12 +14,14 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+        <activity android:name=".LinkTwitterActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".AccountActivity"
             android:label="@string/title_account_activity"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity
-            android:name=".SigningActivity"
+            android:name=".AccountSigningActivity"
             android:label="@string/title_activity_signing"
             android:parentActivityName=".AccountActivity"
             android:theme="@style/AppTheme.NoActionBar" />
@@ -45,7 +47,8 @@
         <activity
             android:name=".MessagingActivity"
             android:parentActivityName=".PeerConversationActivity"
-            android:theme="@style/AppTheme.NoActionBar" />
+            android:theme="@style/AppTheme.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
 
         <service
             android:name=".DistortBackgroundService"

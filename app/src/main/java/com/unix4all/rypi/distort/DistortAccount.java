@@ -7,6 +7,7 @@ import android.util.JsonWriter;
 import android.util.Log;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class DistortAccount {
     private String mPeerId;
@@ -33,8 +34,7 @@ public class DistortAccount {
     public Boolean getEnabled() {
         return mEnabled;
     }
-    @Nullable
-    public String getActiveGroup() {
+    @Nullable public String getActiveGroup() {
         return mActiveGroup;
     }
 

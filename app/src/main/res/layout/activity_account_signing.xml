@@ -9,7 +9,7 @@
     android:padding="10dp"
     android:background="@color/ic_launcher_distort_background"
     android:clickable="true"
-    tools:context=".SigningActivity">
+    tools:context=".AccountSigningActivity">
 
     <ImageView
         android:id="@+id/signedQrCode"

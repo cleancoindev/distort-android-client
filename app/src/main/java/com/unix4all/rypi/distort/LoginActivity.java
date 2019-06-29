@@ -25,6 +25,8 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import com.twitter.sdk.android.core.Twitter;
+
 import org.spongycastle.crypto.digests.SHA256Digest;
 import org.spongycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.spongycastle.crypto.params.KeyParameter;
@@ -70,6 +72,7 @@ public class LoginActivity extends AppCompatActivity implements CreateAccountFra
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_login);
 
         // Set up the login form.
@@ -136,6 +139,9 @@ public class LoginActivity extends AppCompatActivity implements CreateAccountFra
         } else {
             mSignInWithStoredButton.setVisibility(View.INVISIBLE);
         }
+
+        // Adding social-media account linking support, starting with Twitter
+        Twitter.initialize(this);
     }
 
 
@@ -194,7 +200,7 @@ public class LoginActivity extends AppCompatActivity implements CreateAccountFra
     }
 
     @Override
-    protected void onResume() {
+    protected void onStart() {
         SharedPreferences sharedPref = this.getSharedPreferences(
                 getString(R.string.account_credentials_preferences_key), Context.MODE_PRIVATE);
         mToken = sharedPref.getString(EXTRA_CREDENTIAL, null);
@@ -206,7 +212,7 @@ public class LoginActivity extends AppCompatActivity implements CreateAccountFra
             mSignInWithStoredButton.setVisibility(View.INVISIBLE);
         }
 
-        super.onResume();
+        super.onStart();
     }
 
     /**

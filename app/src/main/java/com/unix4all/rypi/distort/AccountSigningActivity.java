@@ -1,7 +1,6 @@
 package com.unix4all.rypi.distort;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.AsyncTask;
@@ -32,7 +31,7 @@ import java.util.HashMap;
 import javax.net.ssl.HttpsURLConnection;
 
 
-public class SigningActivity extends AppCompatActivity {
+public class AccountSigningActivity extends AppCompatActivity {
     private RequestSignatureTask mRequestSignatureTask;
     private GenerateQrCodeTask mGenerateQrCodeTask;
     private DistortAuthParams mLoginParams;
@@ -47,7 +46,7 @@ public class SigningActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_signing);
+        setContentView(R.layout.activity_account_signing);
 
         mLoginParams = DistortAuthParams.getAuthenticationParams(this);
 
@@ -71,7 +70,7 @@ public class SigningActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if(mGenerateQrCodeTask == null && mRequestSignatureTask == null) {
-                    String plaintext = mSignTextEdit.getText().toString();
+                    String plaintext = "create-account://" + mSignTextEdit.getText().toString();
 
                     if(!plaintext.isEmpty()) {
                         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);

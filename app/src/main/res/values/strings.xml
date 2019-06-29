@@ -160,4 +160,13 @@
     <string name="title_activity_signing">Signature Creation</string>
     <string name="error_generate_barcode">Failed to generate QR code</string>
     <string name="button_sign_text">Generate Account-Creation Token</string>
+    <string name="success_update_password">Successfully updated password</string>
+    <string name="button_link_twitter">Link Twitter Account</string>
+    <string name="linked_accounts_preferences_keys">com.unix4all.rypi.LINKED_ACCOUNTS</string>
+    <string name="message_account_link_success">Successfully linked accounts</string>
+    <string name="prompt_twitter_handle">Twitter username</string>
+    <string name="button_link_social_media">Link</string>
+    <string name="error_search_accounts_twitter">Failed to search for Twitter accounts</string>
+    <string name="com.twitter.sdk.android.CONSUMER_KEY">xxxxxxxxxxxxxxxxxxxx</string>
+    <string name="com.twitter.sdk.android.CONSUMER_SECRET">xxxxxxxxxxxxxxxxxxxxxxxxxxx</string>
 </resources>

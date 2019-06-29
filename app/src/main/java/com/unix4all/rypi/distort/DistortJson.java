@@ -97,6 +97,7 @@ public class DistortJson {
             // Set request header fields
             myConnection.setRequestProperty("User-Agent", "distort-android-v0.1");
             myConnection.setRequestProperty("Accept","*/*");
+            myConnection.setRequestProperty("Connection","close");
 
             if(loginParams != null) {
                 // Auth header fields
@@ -108,7 +109,7 @@ public class DistortJson {
             }
 
             // Make connection and determine response
-            myConnection.setConnectTimeout(5000);
+            myConnection.setConnectTimeout(2000);
             myConnection.connect();
             response = myConnection.getResponseCode();
 
@@ -206,6 +207,7 @@ public class DistortJson {
             // Set request header fields
             myConnection.setRequestProperty("User-Agent", "distort-android-v0.1");
             myConnection.setRequestProperty("Accept", "*/*");
+            myConnection.setRequestProperty("Connection","close");
             myConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             myConnection.setRequestProperty("charset", "utf-8");
             myConnection.setRequestProperty("Content-Length", Integer.toString(postData.length));
@@ -220,7 +222,7 @@ public class DistortJson {
             }
 
             // Make connection and determine response
-            myConnection.setConnectTimeout(5000);
+            myConnection.setConnectTimeout(2000);
             myConnection.connect();
 
             DataOutputStream wr = new DataOutputStream(myConnection.getOutputStream());

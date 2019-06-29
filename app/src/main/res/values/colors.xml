@@ -12,4 +12,5 @@
     <color name="removeButton">#931f1f</color>
     <color name="removeButtonDisabled">#c4b2b2</color>
     <color name="cancelButton">#c4c1c1</color>
+    <color name="twitterHandle">#00bfff</color>
 </resources>

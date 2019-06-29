@@ -61,7 +61,7 @@ public class AccountActivity extends AppCompatActivity {
             mOpenSignDialogButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    Intent intent = new Intent(self, SigningActivity.class);
+                    Intent intent = new Intent(self, AccountSigningActivity.class);
                     self.startActivity(intent);
                 }
             });

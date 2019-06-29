@@ -1,6 +1,6 @@
 package com.unix4all.rypi.distort;
 
-import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -13,12 +13,15 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static android.app.Activity.RESULT_OK;
 
 
 /**
@@ -37,10 +40,12 @@ public class NewConversationFragment extends DialogFragment {
     private EditText mAccountName;
     private Button mAddPeer;
     private Button mScanQrCode;
+    private ImageView mFindTwitterLink;
 
     private IntentIntegrator qrCodeScan;
 
-    private static final Pattern IS_ACCOUNT_ID_PATTERN = Pattern.compile("^([a-zA-Z0-9]+)(:(.+))?$");
+    private static final Pattern IS_ACCOUNT_ID_PATTERN = Pattern.compile("^([1-9A-HJ-NP-Za-km-z]+)(:([^\\s]+))?$");
+    private static final int LINK_SOCIAL_MEDIA_REQUEST = 11063;
 
 
     /**
@@ -88,6 +93,16 @@ public class NewConversationFragment extends DialogFragment {
             }
         });
 
+        // Allow using Twitter to find peer identities
+        mFindTwitterLink = view.findViewById(R.id.findTwitterLink);
+        final Context ctx = getActivity();
+        mFindTwitterLink.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(ctx, LinkTwitterActivity.class);
+                startActivityForResult(intent, LINK_SOCIAL_MEDIA_REQUEST);
+            }
+        });
 
         // Set dialog title
         getDialog().setTitle(R.string.title_create_new_conversation);
@@ -107,16 +122,27 @@ public class NewConversationFragment extends DialogFragment {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
-        if(result != null && result.getContents() != null) {
-            Matcher matcher = IS_ACCOUNT_ID_PATTERN.matcher(result.getContents());
-            if(matcher.matches()) {
-                mPeerId.setText(matcher.group(1));
-                mAccountName.setText(matcher.group(3));
-            } else {
-                mPeerId.setText("");
-                mAccountName.setText("");
-                Snackbar.make(getView().findViewById(R.id.newConversationLayout), R.string.error_invalid_barcode, Snackbar.LENGTH_SHORT).show();
+        if(requestCode == IntentIntegrator.REQUEST_CODE) {
+            IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
+            if (result != null && result.getContents() != null) {
+                Matcher matcher = IS_ACCOUNT_ID_PATTERN.matcher(result.getContents());
+                if (matcher.matches()) {
+                    mPeerId.setText(matcher.group(1));
+                    mAccountName.setText(matcher.group(3));
+                } else {
+                    mPeerId.setText("");
+                    mAccountName.setText("");
+                    Snackbar.make(getView().findViewById(R.id.newConversationLayout), R.string.error_invalid_barcode, Snackbar.LENGTH_SHORT).show();
+                }
+            }
+        } else if(requestCode == LINK_SOCIAL_MEDIA_REQUEST){
+            if(resultCode == RESULT_OK) {
+                Bundle b = intent.getExtras();
+                mPeerId.setText(b.getString("peerId", ""));
+                mAccountName.setText(b.getString("accountName", ""));
+                if(mFriendlyName.getText().length() == 0) {
+                    mFriendlyName.setText(b.getString("handle", ""));
+                }
             }
         }
     }
