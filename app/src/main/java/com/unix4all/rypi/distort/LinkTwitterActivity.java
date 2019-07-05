@@ -86,9 +86,14 @@ public class LinkTwitterActivity extends AppCompatActivity implements SocialMedi
             @Override
             public void afterTextChanged(Editable s) {
                 String handle = s.toString();
-                if(mSearchUsersTask == null && twitterClient != null && !handle.isEmpty()) {
-                    mSearchUsersTask = new SearchUsersTask(self, handle);
-                    mSearchUsersTask.execute();
+                if(!handle.isEmpty()) {
+                    if (mSearchUsersTask == null && twitterClient != null) {
+                        mSearchUsersTask = new SearchUsersTask(self, handle);
+                        mSearchUsersTask.execute();
+                    }
+                } else {
+                    HashSet<String> emptySet = new HashSet<>();
+                    mHandleAdapter.updateToSet(emptySet);
                 }
             }
         });
@@ -211,17 +216,18 @@ public class LinkTwitterActivity extends AppCompatActivity implements SocialMedi
         private Activity mContext;
         private String mHandle;
 
+        private final HashSet<String> mRespHandles;
         private String mErrorString;
 
         SearchUsersTask(Activity ctx, String handle) {
             mContext = ctx;
             mHandle = handle;
             mErrorString = "";
+            mRespHandles = new HashSet<>();
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            mErrorString = "";
             Call<List<User>> usersTask = twitterClient.getSearchUsersService().search(mHandle, 10);
 
             try {
@@ -231,17 +237,10 @@ public class LinkTwitterActivity extends AppCompatActivity implements SocialMedi
                 }
 
                 // Update handles
-                final HashSet<String> handles = new HashSet<>();
                 List<User> body = response.body();
                 for(User u : body) {
-                    handles.add(u.screenName);
+                    mRespHandles.add(u.screenName);
                 }
-                mContext.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        mHandleAdapter.updateToSet(handles);
-                    }
-                });
 
                 return true;
             } catch(IOException e) {
@@ -254,7 +253,14 @@ public class LinkTwitterActivity extends AppCompatActivity implements SocialMedi
         @Override
         protected void onPostExecute(final Boolean success) {
             mSearchUsersTask = null;
-            if (!success) {
+            if(success) {
+                mContext.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mHandleAdapter.updateToSet(mRespHandles);
+                    }
+                });
+            } else {
                 Snackbar.make(findViewById(R.id.linkTwitterConstraint), mErrorString,
                         Snackbar.LENGTH_LONG)
                         .show();

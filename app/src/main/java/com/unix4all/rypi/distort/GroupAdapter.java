@@ -190,10 +190,14 @@ class GroupViewHolder extends RecyclerView.ViewHolder implements View.OnCreateCo
             case R.id.setSubgroupMenuItem:
                 mContext.showChangeGroupLevel(this.getAdapterPosition());
                 break;
-
             case R.id.removeGroupMenuItem:
                 mContext.showRemoveGroup(this.getAdapterPosition());
                 break;
+            case R.id.setColourItem:
+                mContext.openColourPicker(this.getAdapterPosition());
+                break;
+            default:
+                return false;
         }
         return true;
     }

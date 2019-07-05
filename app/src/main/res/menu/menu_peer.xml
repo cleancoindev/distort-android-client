@@ -5,6 +5,9 @@
         android:id="@+id/renamePeerMenuItem"
         android:title="@string/menu_rename_peer" />
     <item
+        android:id="@+id/setColourItem"
+        android:title="@string/menu_set_colour" />
+    <item
         android:id="@+id/removePeerMenuItem"
         android:title="@string/menu_remove" />
 </menu>

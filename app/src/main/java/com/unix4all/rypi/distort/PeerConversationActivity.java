@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -31,6 +32,8 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.net.ssl.HttpsURLConnection;
+
+import yuku.ambilwarna.AmbilWarnaDialog;
 
 public class PeerConversationActivity extends AppCompatActivity
         implements NewConversationFragment.NewConversationListener, TimedRemoveFragment.OnFragmentFinishedListener, RenamePeerFragment.OnRenamePeerFragmentListener {
@@ -142,6 +145,28 @@ public class PeerConversationActivity extends AppCompatActivity
         FragmentManager fm = getSupportFragmentManager();
         NewConversationFragment newConvoFragment = NewConversationFragment.newInstance();
         newConvoFragment.show(fm, "fragment_newConversationLayout");
+    }
+
+    public void openColourPicker(final int position) {
+        final String label = mConversationAdapter.getItem(position).getUniqueLabel();
+        final String id = label+":colour";
+
+        final SharedPreferences sp = getSharedPreferences(getString(R.string.icon_colours_preferences_keys),
+                Context.MODE_PRIVATE);
+        final int defaultColour = sp.getInt(id, 0);
+        AmbilWarnaDialog colourDialog = new AmbilWarnaDialog(this, defaultColour, new AmbilWarnaDialog.OnAmbilWarnaListener() {
+            @Override
+            public void onCancel(AmbilWarnaDialog dialog) {}
+
+            @Override
+            public void onOk(AmbilWarnaDialog dialog, int colour) {
+                SharedPreferences.Editor editor = sp.edit();
+                editor.putInt(id, colour);
+                editor.apply();
+                mConversationAdapter.notifyItemChanged(position);
+            }
+        });
+        colourDialog.show();
     }
 
     public void showRemovePeer(Integer position) {

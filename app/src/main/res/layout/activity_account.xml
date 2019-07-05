@@ -14,8 +14,7 @@
         android:layout_height="512px"
         android:layout_gravity="center_horizontal"
         app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/generate_qr_code"
-        tools:layout_editor_absoluteX="108dp" />
+        app:srcCompat="@drawable/generate_qr_code" />
 
     <TextView
         android:id="@+id/waitingText"

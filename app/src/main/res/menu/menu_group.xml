@@ -5,6 +5,9 @@
         android:id="@+id/setSubgroupMenuItem"
         android:title="@string/menu_set_subgroup" />
     <item
+        android:id="@+id/setColourItem"
+        android:title="@string/menu_set_colour" />
+    <item
         android:id="@+id/removeGroupMenuItem"
         android:title="@string/menu_remove" />
 </menu>

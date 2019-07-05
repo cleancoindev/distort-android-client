@@ -191,10 +191,14 @@ class ConversationViewHolder extends RecyclerView.ViewHolder implements View.OnC
                 this.
                 mContext.showRenamePeer(this.getAdapterPosition());
                 break;
-
             case R.id.removePeerMenuItem:
                 mContext.showRemovePeer(this.getAdapterPosition());
                 break;
+            case R.id.setColourItem:
+                mContext.openColourPicker(this.getAdapterPosition());
+                break;
+            default:
+                return false;
         }
         return true;
     }

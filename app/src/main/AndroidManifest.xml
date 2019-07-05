@@ -15,7 +15,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity android:name=".LinkTwitterActivity"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize"
+            android:label="@string/title_activity_search_twitter"/>
         <activity
             android:name=".AccountActivity"
             android:label="@string/title_account_activity"

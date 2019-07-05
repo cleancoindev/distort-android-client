@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -33,6 +34,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
+
+import yuku.ambilwarna.AmbilWarnaDialog;
 
 public class GroupsActivity extends AppCompatActivity implements NewGroupFragment.NewGroupListener, TimedRemoveFragment.OnFragmentFinishedListener {
     private final GroupsActivity mActivity = this;
@@ -128,6 +131,28 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
 
         TimedRemoveFragment timedRemoveGroupFragment = TimedRemoveFragment.newInstance(this, title, description, groupIndex);
         timedRemoveGroupFragment.show(fm, "fragment_removeGroupLayout");
+    }
+
+    public void openColourPicker(final int groupIndex) {
+        final String name = mGroupsAdapter.getItem(groupIndex).getName();
+        final String id = name+":colour";
+
+        final SharedPreferences sp = getSharedPreferences(getString(R.string.icon_colours_preferences_keys),
+                Context.MODE_PRIVATE);
+        final int defaultColour = sp.getInt(id, 0);
+        AmbilWarnaDialog colourDialog = new AmbilWarnaDialog(this, defaultColour, new AmbilWarnaDialog.OnAmbilWarnaListener() {
+            @Override
+            public void onCancel(AmbilWarnaDialog dialog) {}
+
+            @Override
+            public void onOk(AmbilWarnaDialog dialog, int colour) {
+                SharedPreferences.Editor editor = sp.edit();
+                editor.putInt(id, colour);
+                editor.apply();
+                mGroupsAdapter.notifyItemChanged(groupIndex);
+            }
+        });
+        colourDialog.show();
     }
 
     public void showChangeGroupLevel(int position) {
