@@ -1,7 +1,7 @@
 # DistoRt Client  <img src="images/icon.png" width="50" height="50" />
 
 ### About
-This is the reference implementation for an Android client for DistoRt, a platform for providing anonymous and 
+This is the reference implementation for an Android client for [DistoRt](https://distortapp.org), a platform for providing anonymous and 
 encrypted messaging between peers (designed by [JS Légaré](https://github.com/init-js)). 
 Large anonymity groups are used to obscure the intended recipient of a message, 
 and modern encryption schemes are used to ensure confidentiality.
