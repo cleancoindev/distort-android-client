@@ -88,7 +88,7 @@ public class SettingsActivity extends AppCompatActivity implements ChangePasswor
 
 
         int selectedItem = 0;
-        HashMap<String, DistortGroup> groupMap = DistortBackgroundService.getLocalGroups(this);
+        HashMap<String, DistortGroup> groupMap = DistortBackgroundService.getLocalGroups(this, mAccount.getFullAddress());
         mGroups = new ArrayList<>();
         mGroups.add(null);
         mGroupNames = new ArrayList<>();

@@ -140,13 +140,13 @@ public class MessagingActivity extends AppCompatActivity {
 
     // Getting local values
     private DistortGroup getGroupFromLocal(String groupName) {
-        return DistortBackgroundService.getLocalGroups(this).get(groupName);
+        return DistortBackgroundService.getLocalGroups(this, mLoginParams.getFullAddress()).get(groupName);
     }
     private DistortConversation getConversationFromLocal(String conversationLabel) {
-        return DistortBackgroundService.getLocalConversations(this).get(conversationLabel);
+        return DistortBackgroundService.getLocalConversations(this, mLoginParams.getFullAddress()).get(conversationLabel);
     }
     private DistortPeer getPeerFromLocal(String peerFullAddress) {
-        return DistortBackgroundService.getLocalPeers(this).get(peerFullAddress);
+        return DistortBackgroundService.getLocalPeers(this, mLoginParams.getFullAddress()).get(peerFullAddress);
     }
     private ArrayList<DistortMessage> getMessagesFromLocal(String conversationLabel, @Nullable Integer startIndex, @Nullable Integer endIndex) {
         return DistortBackgroundService.getLocalConversationMessages(mDatabaseHelper, conversationLabel, startIndex, endIndex);

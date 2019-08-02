@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -34,8 +35,12 @@ public class AccountActivity extends AppCompatActivity {
         setContentView(R.layout.activity_account);
 
         mLoginParams = DistortAuthParams.getAuthenticationParams(this);
-
         mAccountBarCode = findViewById(R.id.accountBarcode);
+
+        // Init toolbar
+        Toolbar toolbar = findViewById(R.id.accountToolbar);
+        toolbar.setTitle(R.string.title_activity_account);
+        setSupportActionBar(toolbar);
 
         // Set text code
         String fullAddress = DistortPeer.toFullAddress(mLoginParams.getPeerId(), mLoginParams.getAccountName());

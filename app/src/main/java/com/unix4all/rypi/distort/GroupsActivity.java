@@ -13,6 +13,7 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
@@ -37,11 +38,11 @@ import javax.net.ssl.HttpsURLConnection;
 
 import yuku.ambilwarna.AmbilWarnaDialog;
 
-public class GroupsActivity extends AppCompatActivity implements NewGroupFragment.NewGroupListener, TimedRemoveFragment.OnFragmentFinishedListener {
+public class GroupsActivity extends AppCompatActivity implements NewGroupFragment.NewGroupListener,
+        TimedRemoveFragment.OnFragmentFinishedListener, GettingStartedFragment.GettingStartedCloseListener {
     private final GroupsActivity mActivity = this;
 
     private DistortAuthParams mLoginParams;
-    private @Nullable DistortAccount mAccount;
 
     private RecyclerView mGroupsView;
     private GroupAdapter mGroupsAdapter;
@@ -74,9 +75,18 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         // Prepare for datasets
         mGroupsAdapter = new GroupAdapter(this, new ArrayList<DistortGroup>(), null);
         mGroupsView.setAdapter(mGroupsAdapter);
-        HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(this);
+        HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(this, mLoginParams.getFullAddress());
         for(Map.Entry<String, DistortGroup> group : allGroups.entrySet()) {
             mGroupsAdapter.addOrUpdateGroup(group.getValue());
+        }
+
+        // Set active group if can
+        DistortAccount account = DistortBackgroundService.getLocalAccount(this);
+        if(account != null) {
+            String activeGroup = account.getActiveGroup();
+            if(activeGroup != null && !activeGroup.isEmpty()) {
+                mGroupsAdapter.updateActiveGroup(activeGroup);
+            }
         }
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -86,6 +96,20 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                 showJoinNewGroup();
             }
         });
+
+        // First login handling
+        SharedPreferences sharedPref = getSharedPreferences(getString(R.string.getting_started_preferences_key), Context.MODE_PRIVATE);
+        if(!sharedPref.getBoolean("gettingStartedGroups", false)) {
+            View groups = findViewById(R.id.groupsView);
+            groups.setVisibility(View.GONE);
+
+            fab.setVisibility(View.INVISIBLE);
+
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            GettingStartedFragment f = GettingStartedFragment.newInstance(
+                    getString(R.string.text_getting_started_groups), "gettingStartedGroups");
+            ft.replace(R.id.gettingStartedGroupsLayout, f, "fragment_gettingStartedGroupsLayout").addToBackStack(null).commit();
+        }
     }
 
     @Override
@@ -94,7 +118,6 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         findMenuItems.inflate(R.menu.menu_options, menu);
         return super.onCreateOptionsMenu(menu);
     }
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
@@ -178,6 +201,15 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
         }
     }
 
+    @Override
+    public void OnGettingStartedClose() {
+        View groups = findViewById(R.id.groupsView);
+        groups.setVisibility(View.VISIBLE);
+
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setVisibility(View.VISIBLE);
+    }
+
     // Handle successful retrieval of groups
     @Override
     protected void onStart() {
@@ -212,7 +244,7 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
     public class GroupServiceBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            final HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(getApplicationContext());
+            final HashMap<String, DistortGroup> allGroups = DistortBackgroundService.getLocalGroups(getApplicationContext(), mLoginParams.getFullAddress());
             mActivity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -236,7 +268,6 @@ public class GroupsActivity extends AppCompatActivity implements NewGroupFragmen
                     mGroupsAdapter.updateActiveGroup(account.getActiveGroup());
                 }
             });
-            mAccount = account;
         }
     }
 

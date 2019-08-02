@@ -116,7 +116,7 @@
     <string name="pref_title_vibrate">Vibrate</string>
     <string name="title_about">About</string>
     <string name="close_button">Close</string>
-    <string name="text_about">This is the reference client app for DistoRt, a platform for providing anonymous and encrypted messaging between peers. Large anonymity groups are used to obscure the intended recipient of a message, and modern encryption schemes are used to ensure confidentiality.</string>
+    <string name="text_about">This is the reference android app for DistoRt over IPFS, a platform for providing anonymous and encrypted messaging between peers. Large anonymity groups are used to obscure the intended recipient of each message, and modern encryption schemes are used to ensure confidentiality. For more information, visit the project website.</string>
     <string name="toggle_enabled">Enabled</string>
     <string name="prompt_active_group">Active Group</string>
     <string name="prompt_remove">Remove</string>
@@ -171,4 +171,11 @@
     <string name="com.twitter.sdk.android.CONSUMER_SECRET">xxxxxxxxxxxxxxxxxxxxxxxxxxx</string>
     <string name="title_activity_search_twitter">Add Twitter User</string>
     <string name="menu_set_colour">Set colour</string>
+    <string name="text_app_link">https://distortapp.org</string>
+    <string name="text_getting_started">Hi! Welcome to the DistoRt on IPFS android client. To get started, connect to your private DistoRt homeserver. If you do not already have one, visit https://github.com/ryco117/distort-server for more information.</string>
+    <string name="text_getting_started_groups">This is the groups page. Here you can manage the groups that are currently subscribed to. Messages can be received over all joined groups, but they will only be sent over the active group. Joining larger groups is recommended as it increases anonymity.</string>
+    <string name="text_getting_started_conversations">This is the conversations page. It allows you to manage peers and message over groups to peers. Peers may be added through their DistoRt IDs directly, or through their social media identities.</string>
+    <string name="getting_started_preferences_key">\"com.unix4all.rypi.distort.GETTING_STARTED\"</string>
+    <string name="title_getting_started">Getting started</string>
+    <string name="title_activity_account">Account</string>
 </resources>

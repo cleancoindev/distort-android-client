@@ -5,14 +5,22 @@
     android:id="@+id/accountActivityLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="10dp">
+    android:orientation="vertical">
+
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/accountToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
 
     <ImageView
         android:id="@+id/accountBarcode"
         android:layout_width="512px"
         android:layout_height="512px"
         android:layout_gravity="center_horizontal"
+        android:contentDescription="@string/text_generating_qr_code"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/generate_qr_code" />
 
@@ -42,16 +50,18 @@
         android:id="@+id/openSignDialogButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
         android:text="@string/button_sign_text"
-        app:layout_constraintTop_toBottomOf="@+id/accountIdText"
-        tools:layout_editor_absoluteX="161dp" />
+        app:layout_constraintTop_toBottomOf="@+id/accountIdText" />
 
     <Button
         android:id="@+id/closeButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
         android:text="@string/close_button"
-        app:layout_constraintTop_toBottomOf="@+id/openSignDialogButton"
-        tools:layout_editor_absoluteX="161dp" />
+        app:layout_constraintTop_toBottomOf="@+id/openSignDialogButton" />
 </LinearLayout>

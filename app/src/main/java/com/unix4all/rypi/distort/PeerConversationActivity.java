@@ -12,6 +12,7 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
@@ -20,6 +21,9 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.JsonReader;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 
 import java.io.IOException;
@@ -36,7 +40,8 @@ import javax.net.ssl.HttpsURLConnection;
 import yuku.ambilwarna.AmbilWarnaDialog;
 
 public class PeerConversationActivity extends AppCompatActivity
-        implements NewConversationFragment.NewConversationListener, TimedRemoveFragment.OnFragmentFinishedListener, RenamePeerFragment.OnRenamePeerFragmentListener {
+        implements NewConversationFragment.NewConversationListener, TimedRemoveFragment.OnFragmentFinishedListener,
+        RenamePeerFragment.OnRenamePeerFragmentListener, GettingStartedFragment.GettingStartedCloseListener {
     private final PeerConversationActivity mActivity = this;
 
     private DistortAuthParams mLoginParams;
@@ -115,6 +120,48 @@ public class PeerConversationActivity extends AppCompatActivity
                 showAddNewPeer();
             }
         });
+
+        // First peers-list handlings
+        SharedPreferences sharedPref = getSharedPreferences(getString(R.string.getting_started_preferences_key), Context.MODE_PRIVATE);
+        if(!sharedPref.getBoolean("gettingStartedPeers", false)) {
+            View conversations = findViewById(R.id.peerConversationsView);
+            conversations.setVisibility(View.GONE);
+
+            fab.setVisibility(View.INVISIBLE);
+
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            GettingStartedFragment f = GettingStartedFragment.newInstance(
+                    getString(R.string.text_getting_started_conversations), "gettingStartedPeers");
+            ft.replace(R.id.gettingStartedPeersLayout, f, "fragment_gettingStartedPeersLayout").addToBackStack(null).commit();
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater findMenuItems = getMenuInflater();
+        findMenuItems.inflate(R.menu.menu_options, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.aboutOption:
+                FragmentManager fm = getSupportFragmentManager();
+                AboutFragment aboutFragment = AboutFragment.newInstance();
+                aboutFragment.show(fm, "fragment_aboutLayout");
+                return true;
+            case R.id.settingsOption:
+                Intent intent = new Intent(this, SettingsActivity.class);
+                this.startActivity(intent);
+                return true;
+            case R.id.accountOption:
+                intent = new Intent(this, AccountActivity.class);
+                this.startActivity(intent);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     @Override
@@ -132,13 +179,10 @@ public class PeerConversationActivity extends AppCompatActivity
 
     // Getting local values
     private DistortGroup getGroupFromLocal(String groupName) {
-        return DistortBackgroundService.getLocalGroups(this).get(groupName);
+        return DistortBackgroundService.getLocalGroups(this, mLoginParams.getFullAddress()).get(groupName);
     }
     private HashMap<String, DistortPeer> getPeersFromLocal() {
-        return DistortBackgroundService.getLocalPeers(this);
-    }
-    private HashMap<String, DistortConversation> getConversationsFromLocal() {
-        return DistortBackgroundService.getLocalConversations(this);
+        return DistortBackgroundService.getLocalPeers(this, mLoginParams.getFullAddress());
     }
 
     private void showAddNewPeer() {
@@ -218,6 +262,15 @@ public class PeerConversationActivity extends AppCompatActivity
 
         mAddPeerTask = new AddPeerTask(this, nickname, peerId, accountName);
         mAddPeerTask.execute();
+    }
+
+    @Override
+    public void OnGettingStartedClose() {
+        View conversations = findViewById(R.id.peerConversationsView);
+        conversations.setVisibility(View.VISIBLE);
+
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setVisibility(View.VISIBLE);
     }
 
     // Handle successful retrieval of peers

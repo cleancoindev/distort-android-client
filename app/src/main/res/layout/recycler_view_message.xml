@@ -13,16 +13,19 @@
         android:id="@+id/messageFrom"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="TextView"
+        android:layout_marginTop="8dp"
+        android:text="@string/text_place_holder"
         android:textSize="14sp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:layout_editor_absoluteX="5dp" />
 
     <TextView
         android:id="@+id/messageContent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="start"
-        android:text="This is a very long text and we need to show three dots in place of the rest"
+        android:text="@string/text_place_holder"
         android:textIsSelectable="true"
         app:layout_constraintTop_toBottomOf="@+id/messageFrom"
         tools:layout_editor_absoluteX="5dp" />
@@ -31,7 +34,7 @@
         android:id="@+id/messageTime"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="TextView"
+        android:text="@string/text_place_holder"
         android:textSize="12sp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/messageContent" />

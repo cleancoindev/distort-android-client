@@ -51,7 +51,7 @@ import static com.unix4all.rypi.distort.DistortAuthParams.EXTRA_PEER_ID;
 /**
  * A login screen that offers login via homeserver / password.
  */
-public class LoginActivity extends AppCompatActivity implements CreateAccountFragment.OnAccountCreationListener {
+public class LoginActivity extends AppCompatActivity implements CreateAccountFragment.OnAccountCreationListener, GettingStartedFragment.GettingStartedCloseListener {
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
@@ -142,6 +142,19 @@ public class LoginActivity extends AppCompatActivity implements CreateAccountFra
 
         // Adding social-media account linking support, starting with Twitter
         Twitter.initialize(this);
+
+
+        // First app-use handling
+        sharedPref = getSharedPreferences(getString(R.string.getting_started_preferences_key), Context.MODE_PRIVATE);
+        if(!sharedPref.getBoolean("gettingStarted", false)) {
+            View loginForm = findViewById(R.id.login_form);
+            loginForm.setVisibility(View.GONE);
+
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            GettingStartedFragment f = GettingStartedFragment.newInstance(
+                    getString(R.string.text_getting_started), "gettingStarted");
+            ft.replace(R.id.loginActivityLayout, f, "fragment_gettingStartedLayout").addToBackStack(null).commit();
+        }
     }
 
 
@@ -301,6 +314,12 @@ public class LoginActivity extends AppCompatActivity implements CreateAccountFra
         if(account != null) {
             LaunchMainApplication(account);
         }
+    }
+
+    // Receive closing of getting-started window
+    public void OnGettingStartedClose() {
+        View loginForm = findViewById(R.id.login_form);
+        loginForm.setVisibility(View.VISIBLE);
     }
 
     /**

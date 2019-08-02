@@ -53,9 +53,9 @@ public class DistortBackgroundService extends IntentService {
     public static final String BACKGROUND_ERROR = "com.unix4all.rypi.distort.action.BACKGROUND_ERROR";
 
     // Saved local files
-    private static final String PEERS_FILE_NAME = "peers.json";
-    private static final String GROUPS_FILE_NAME = "groups.json";
-    private static final String CONVERSATIONS_FILE_NAME = "conversations.json";
+    private static final String PEERS_FILE_POSTFIX = "-peers.json";
+    private static final String GROUPS_FILE_POSTFIX = "-groups.json";
+    private static final String CONVERSATIONS_FILE_POSTFIX = "-conversations.json";
     private static final AtomicInteger notificationId = new AtomicInteger(0);
 
     private DistortAuthParams mLoginParams;
@@ -115,10 +115,10 @@ public class DistortBackgroundService extends IntentService {
         }
     }
     // Hashmap is keyed by peer full-address
-    public static HashMap<String, DistortPeer> getLocalPeers(Context context) {
+    public static HashMap<String, DistortPeer> getLocalPeers(Context context, String fullAddress) {
         HashMap<String, DistortPeer> peerSet = new HashMap<>();
         try {
-            FileInputStream fis = context.openFileInput(PEERS_FILE_NAME);
+            FileInputStream fis = context.openFileInput(fullAddress + PEERS_FILE_POSTFIX);
             JsonReader json = new JsonReader(new InputStreamReader(fis));
 
             if(!json.peek().equals(JsonToken.BEGIN_ARRAY)) {
@@ -139,10 +139,10 @@ public class DistortBackgroundService extends IntentService {
         return peerSet;
     }
     // Hashmap is keyed by group name
-    public static HashMap<String, DistortGroup> getLocalGroups(Context context) {
+    public static HashMap<String, DistortGroup> getLocalGroups(Context context, String fullAddress) {
         HashMap<String, DistortGroup> groupSet = new HashMap<>();
         try {
-            FileInputStream fis = context.openFileInput(GROUPS_FILE_NAME);
+            FileInputStream fis = context.openFileInput(fullAddress + GROUPS_FILE_POSTFIX);
             JsonReader json = new JsonReader(new InputStreamReader(fis));
 
             if(!json.peek().equals(JsonToken.BEGIN_ARRAY)) {
@@ -163,10 +163,10 @@ public class DistortBackgroundService extends IntentService {
         return groupSet;
     }
     // Hashmap is keyed by conversation unique label, 'group:' + peerFullAddress + [':' + accountName]
-    public static HashMap<String, DistortConversation> getLocalConversations(Context context) {
+    public static HashMap<String, DistortConversation> getLocalConversations(Context context, String fullAddress) {
         HashMap<String, DistortConversation> conversationSet = new HashMap<>();
         try {
-            FileInputStream fis = context.openFileInput(CONVERSATIONS_FILE_NAME);
+            FileInputStream fis = context.openFileInput(fullAddress + CONVERSATIONS_FILE_POSTFIX);
             JsonReader json = new JsonReader(new InputStreamReader(fis));
 
             // Create JSON file and save
@@ -206,9 +206,9 @@ public class DistortBackgroundService extends IntentService {
         editor.apply();
     }
     // Hashmap keyed by peer full-address
-    private void savePeersToLocal(HashMap<String, DistortPeer> peers) {
+    private void savePeersToLocal(String fullAddress, HashMap<String, DistortPeer> peers) {
         try {
-            FileOutputStream fos = this.openFileOutput(PEERS_FILE_NAME, Context.MODE_PRIVATE);
+            FileOutputStream fos = this.openFileOutput(fullAddress + PEERS_FILE_POSTFIX, Context.MODE_PRIVATE);
             JsonWriter json = new JsonWriter(new OutputStreamWriter(fos));
 
             // Read from JSON file
@@ -223,9 +223,9 @@ public class DistortBackgroundService extends IntentService {
         }
     }
     // Hashmap keyed by group database-ID
-    private void saveGroupsToLocal(HashMap<String, DistortGroup> groups) {
+    private void saveGroupsToLocal(String fullAddress, HashMap<String, DistortGroup> groups) {
         try {
-            FileOutputStream fos = this.openFileOutput(GROUPS_FILE_NAME, Context.MODE_PRIVATE);
+            FileOutputStream fos = this.openFileOutput(fullAddress + GROUPS_FILE_POSTFIX, Context.MODE_PRIVATE);
             JsonWriter json = new JsonWriter(new OutputStreamWriter(fos));
 
             // Read from JSON file
@@ -240,9 +240,9 @@ public class DistortBackgroundService extends IntentService {
         }
     }
     // Hashmap keyed by conversation database-ID
-    private void saveConversationsToLocal(HashMap<String, DistortConversation> conversations) {
+    private void saveConversationsToLocal(String fullAddress, HashMap<String, DistortConversation> conversations) {
         try {
-            FileOutputStream fos = this.openFileOutput(CONVERSATIONS_FILE_NAME, Context.MODE_PRIVATE);
+            FileOutputStream fos = this.openFileOutput(fullAddress + CONVERSATIONS_FILE_POSTFIX, Context.MODE_PRIVATE);
             JsonWriter json = new JsonWriter(new OutputStreamWriter(fos));
 
             // Read from JSON file
@@ -421,7 +421,7 @@ public class DistortBackgroundService extends IntentService {
             }
             response.endArray();
             response.close();
-            savePeersToLocal(peers);
+            savePeersToLocal(mLoginParams.getFullAddress(), peers);
 
             // Let know about the successful service
             Intent intent = new Intent();
@@ -443,8 +443,10 @@ public class DistortBackgroundService extends IntentService {
      * Handle action fetch messages in the provided background thread.
      */
     private ArrayList<DistortMessage> handleActionFetchConversationMessages(String conversationLabel) {
+        final String fullAddress = mLoginParams.getFullAddress();
+
         // Load conversations from storage
-        HashMap<String, DistortConversation> conversations = getLocalConversations(this);
+        HashMap<String, DistortConversation> conversations = getLocalConversations(this, fullAddress);
         final DistortConversation localConversation = conversations.get(conversationLabel);
 
         // Store previously retrieved messages to append to
@@ -482,13 +484,13 @@ public class DistortBackgroundService extends IntentService {
         }
 
         // See if conversation has an associated peer
-        DistortPeer peer = getLocalPeers(this).get(localConversation.getFullAddress());
+        DistortPeer peer = getLocalPeers(this, fullAddress).get(localConversation.getFullAddress());
         if(peer != null) {
             localConversation.setNickname(peer.getNickname());
         }
 
         // Load groups from storage
-        HashMap<String, DistortGroup> groups = getLocalGroups(this);
+        HashMap<String, DistortGroup> groups = getLocalGroups(this, fullAddress);
         String groupName = localConversation.getGroup();
         if(groups == null || groups.get(groupName) == null) {
             String errorString = "Group:" + groupName + " is not known locally";
@@ -696,7 +698,7 @@ public class DistortBackgroundService extends IntentService {
             }
             response.endArray();
             response.close();
-            saveGroupsToLocal(groups);
+            saveGroupsToLocal(mLoginParams.getFullAddress(), groups);
 
             // Let know about the successful service
             Intent intent = new Intent();
@@ -715,8 +717,10 @@ public class DistortBackgroundService extends IntentService {
     }
 
     private HashMap<String, DistortConversation> handleActionFetchGroupConversations(String groupName) {
+        final String fullAddress = mLoginParams.getFullAddress();
+
         // Load groups from storage
-        HashMap<String, DistortGroup> groups = getLocalGroups(this);
+        HashMap<String, DistortGroup> groups = getLocalGroups(this, fullAddress);
         if(groups == null || groups.get(groupName) == null) {
             String errorStr = "Group:" + groupName + " is not known locally";
             reportError(errorStr);
@@ -749,7 +753,7 @@ public class DistortBackgroundService extends IntentService {
             }
             response.endArray();
             response.close();
-            saveConversationsToLocal(conversations);
+            saveConversationsToLocal(fullAddress, conversations);
 
             // Let know about the successful service
             Intent intent = new Intent();
@@ -769,11 +773,12 @@ public class DistortBackgroundService extends IntentService {
 
 
     private void handleActionSchedulePrimaryServices() {
+        final String fullAddress = mLoginParams.getFullAddress();
         try {
-            HashMap<String, DistortConversation> storedConversations = getLocalConversations(this);
+            HashMap<String, DistortConversation> storedConversations = getLocalConversations(this, fullAddress);
 
             // Fetch and traverse every group
-            HashMap<String, DistortGroup> groups = getLocalGroups(this);
+            HashMap<String, DistortGroup> groups = getLocalGroups(this, fullAddress);
             for (Map.Entry<String, DistortGroup> group : groups.entrySet()) {
 
                 // Fetch and traverse every conversation in this anonymity group
