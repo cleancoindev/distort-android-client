@@ -48,11 +48,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
         if(mMessagesData.get(position).getType().equals(DistortMessage.TYPE_IN)) {
             InMessage inMsg = (InMessage) mMessagesData.get(position);
 
-            // Set message colour for received message
-            ((GradientDrawable) holder.mMessageContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.messageReceived));
-
             // Set text fields
             String fromStr = mFriendlyName;
+
+            // Ensure message is verified or warn user
+            if(inMsg.getVerified()) {
+                // Set message colour for received message
+                ((GradientDrawable) holder.mMessageContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.messageReceived));
+            } else {
+                // Set colour for unverified warning
+                ((GradientDrawable) holder.mMessageContainer.getBackground()).setColor(mContext.getResources().getColor(R.color.messageUnverified));
+                fromStr += " - **UNVERIFIED**";
+            }
 
             // Set text and gravity
             holder.mFrom.setText(fromStr);
@@ -93,7 +100,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
     }
 
     public void addOrUpdateMessage(DistortMessage msg) {
-
         // Maintain a sorted array. Search for largest-indexed message not greater than the input message
         int i = mMessagesData.size();
 
@@ -132,9 +138,28 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
         }
     }
 
-    public void removeItem(int position) {
-        mMessagesData.remove(position);
-        notifyItemRemoved(position);
+    public void resetAdapter(ArrayList<DistortMessage> messages) {
+        int lenOld = mMessagesData.size();
+        int lenNew = messages.size();
+        mMessagesData = messages;
+
+        for(int i = 0; i < Math.min(lenOld, lenNew); i++) {
+            notifyItemChanged(i);
+        }
+
+        if(lenNew > lenOld) {
+            for(int i = lenOld; i < lenNew; i++) {
+                notifyItemInserted(i);
+            }
+        } else {
+            for(int i = lenOld-1; i >= lenNew; i--) {
+                notifyItemRemoved(i);
+            }
+        }
+    }
+
+    public int getMessageIndex(int position) {
+        return mMessagesData.get(position).getIndex();
     }
 }
 

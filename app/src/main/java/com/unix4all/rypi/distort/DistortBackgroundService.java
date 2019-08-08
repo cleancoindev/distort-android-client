@@ -56,7 +56,6 @@ public class DistortBackgroundService extends IntentService {
     private static final String PEERS_FILE_POSTFIX = "-peers.json";
     private static final String GROUPS_FILE_POSTFIX = "-groups.json";
     private static final String CONVERSATIONS_FILE_POSTFIX = "-conversations.json";
-    private static final AtomicInteger notificationId = new AtomicInteger(0);
 
     private DistortAuthParams mLoginParams;
     private MessageDatabaseHelper mDatabaseHelper;
@@ -635,29 +634,21 @@ public class DistortBackgroundService extends IntentService {
                         notificationChannel.enableVibration(true);
                         notificationManager.createNotificationChannel(notificationChannel);
                     }
-                    builder = new NotificationCompat.Builder(context, conversationLabel);
-                    builder.setContentTitle(title)                            // required
-                            .setSmallIcon(R.drawable.ic_message_notification)   // required
-                            .setContentText(text) // required
-                            .setContentIntent(pIntent)
-                            .setAutoCancel(true)
-                            .setSound(ringtoneUri)
-                            .setLights(0xFF00FF00, 500, 1500)
-                            .setVibrate(new long[]{100, 300, 300, 400});
-                } else {
-                    builder = new NotificationCompat.Builder(context, conversationLabel);
-                    builder.setContentTitle(title)                            // required
-                            .setSmallIcon(R.drawable.ic_message_notification)   // required
-                            .setContentText(text) // required
-                            .setContentIntent(pIntent)
-                            .setAutoCancel(true)
-                            .setSound(ringtoneUri)
-                            .setLights(0xFF00FF00, 500, 1500)
-                            .setVibrate(new long[]{100, 300, 300, 400});
                 }
+                builder = new NotificationCompat.Builder(context, conversationLabel);
+                builder.setContentTitle(title)                            // required
+                        .setSmallIcon(R.drawable.ic_message_notification)   // required
+                        .setContentText(text) // required
+                        .setContentIntent(pIntent)
+                        .setAutoCancel(true)
+                        .setSound(ringtoneUri)
+                        .setLights(0xFF00FF00, 500, 1500)
+                        .setVibrate(new long[]{100, 300, 300, 400});
 
+                // Create notification. Use label hash as ID so multiple messages
+                // in same conversation use the same notification-space
                 Notification notification = builder.build();
-                notificationManager.notify(notificationId.getAndIncrement(), notification);
+                notificationManager.notify(conversationLabel.hashCode(), notification);
             }
 
         } catch (DistortJson.DistortException e) {

@@ -57,6 +57,7 @@ public class MessagingActivity extends AppCompatActivity {
 
     // Bottom layout
     private RecyclerView mMessagesView;
+    LinearLayoutManager mMessagesLinearLayoutManager;
     private MessageAdapter mMessagesAdapter;
     private TextView mSendMessageView;
     private EditText mMessageEdit;
@@ -119,8 +120,8 @@ public class MessagingActivity extends AppCompatActivity {
 
         // Setup list of message-list properties
         mMessagesView = (RecyclerView) findViewById(R.id.messagesView);
-        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(MessagingActivity.this, LinearLayoutManager.VERTICAL, false);
-        mMessagesView.setLayoutManager(linearLayoutManager);
+        mMessagesLinearLayoutManager = new LinearLayoutManager(MessagingActivity.this, LinearLayoutManager.VERTICAL, false);
+        mMessagesView.setLayoutManager(mMessagesLinearLayoutManager);
 
         // Setup other fields
         mSendMessageView = (TextView) findViewById(R.id.sendMessageView);
@@ -199,15 +200,22 @@ public class MessagingActivity extends AppCompatActivity {
         mMessagesAdapter = new MessageAdapter(this, null, mFriendlyName);
         mMessagesView.setAdapter(mMessagesAdapter);
 
+        final MessagingActivity self = this;
+        mMessagesView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+                self.refreshTop();
+            }
+        });
+
         // Use group name + peer full-address to uniquely identify a conversation,
         // even before a message has been sent or received
         preferenceEditor.putString("activeConversation", DistortConversation.toUniqueLabel(mGroup.getName(), mFullAddressString));
         preferenceEditor.apply();
 
         if(mConversation != null) {
-            final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getUniqueLabel(), null, null);
-            int height = allMessages.size();
-            final List<DistortMessage> messages = allMessages.subList(Math.max(height - 20, 0), height);
+            final ArrayList<DistortMessage> messages = getMessagesFromLocal(mConversation.getUniqueLabel(), Math.max(mConversation.getHeight() - 20, 0), null);
             for (int i = 0; i < messages.size(); i++) {
                 mMessagesAdapter.addOrUpdateMessage(messages.get(i));
             }
@@ -246,20 +254,27 @@ public class MessagingActivity extends AppCompatActivity {
                 tmpArray = new String[]{};
             }
             updatedMessages = new Integer[tmpArray.length];
+
+            int max = 0;
+            int min = 0;
             for(int i = 0; i < tmpArray.length; i++) {
                 updatedMessages[i] = Integer.valueOf(tmpArray[i]);
+
+                // Get the max and min indicies that need to be updated
+                min = Math.min(min, updatedMessages[i]);
+                max = Math.max(max, updatedMessages[i]);
             }
 
             if(conversationLabel != null && !conversationLabel.isEmpty()) {
                 mConversation = getConversationFromLocal(conversationLabel);
-                final ArrayList<DistortMessage> allMessages = getMessagesFromLocal(mConversation.getUniqueLabel(), null, null);
+                final ArrayList<DistortMessage> messages = getMessagesFromLocal(mConversation.getUniqueLabel(), min, max);
 
                 // Can only update UI from UI thread
                 mActivity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         for(int i : updatedMessages) {
-                            mMessagesAdapter.addOrUpdateMessage(allMessages.get(i));
+                            mMessagesAdapter.addOrUpdateMessage(messages.get(i));
                         }
                         int position = mMessagesAdapter.getItemCount() - 1;
                         if (position > 0) {
@@ -268,6 +283,21 @@ public class MessagingActivity extends AppCompatActivity {
                     }
                 });
             }
+        }
+    }
+
+    public void refreshTop() {
+        int len = mMessagesAdapter.getItemCount();
+        int start = mMessagesAdapter.getMessageIndex(0);
+
+        // Check if we are at the top of the recycler, and have previous messages to show
+        if(!mMessagesView.canScrollVertically(-1) && start != 0) {
+            int max = mMessagesAdapter.getMessageIndex(len - 1);
+            int min = Math.max(start - 20, 0);
+            final ArrayList<DistortMessage> messages = getMessagesFromLocal(mConversation.getUniqueLabel(), min, max);
+            mMessagesAdapter.resetAdapter(messages);
+
+            mMessagesLinearLayoutManager.scrollToPositionWithOffset(messages.size() - len, 0);
         }
     }
 

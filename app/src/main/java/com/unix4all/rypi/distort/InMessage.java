@@ -11,7 +11,7 @@ import java.util.Date;
 import java.util.TimeZone;
 
 public class InMessage extends DistortMessage {
-    private Boolean mVerified;
+    private boolean mVerified;
     private Date mDateReceived;
 
     // Getters
@@ -26,7 +26,7 @@ public class InMessage extends DistortMessage {
     }
 
     // Setters
-    void setVerified(Boolean verified) {
+    void setVerified(boolean verified) {
         mVerified = verified;
     }
     void setDateReceived(String jsDate) throws IOException {
