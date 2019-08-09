@@ -287,17 +287,18 @@ public class MessagingActivity extends AppCompatActivity {
     }
 
     public void refreshTop() {
-        int len = mMessagesAdapter.getItemCount();
         int start = mMessagesAdapter.getMessageIndex(0);
 
         // Check if we are at the top of the recycler, and have previous messages to show
         if(!mMessagesView.canScrollVertically(-1) && start != 0) {
-            int max = mMessagesAdapter.getMessageIndex(len - 1);
-            int min = Math.max(start - 20, 0);
-            final ArrayList<DistortMessage> messages = getMessagesFromLocal(mConversation.getUniqueLabel(), min, max);
-            mMessagesAdapter.resetAdapter(messages);
 
-            mMessagesLinearLayoutManager.scrollToPositionWithOffset(messages.size() - len, 0);
+            int min = Math.max(start - 20, 0);
+            final ArrayList<DistortMessage> messages = getMessagesFromLocal(mConversation.getUniqueLabel(), min, start);
+            for(DistortMessage message : messages) {
+                mMessagesAdapter.addOrUpdateMessage(message);
+            }
+
+            mMessagesLinearLayoutManager.scrollToPositionWithOffset(messages.size(), 0);
         }
     }
 

@@ -109,7 +109,7 @@ public class MessageDatabaseHelper extends SQLiteOpenHelper {
                 .append(" conversation='").append(c(conversationLabel)).append("' AND")
                 .append(" id >= ").append(startIndex);
         if(endIndex != null) {
-            selectQuery.append(" AND id <= ").append(endIndex);
+            selectQuery.append(" AND id < ").append(endIndex);
         }
         selectQuery.append(" ORDER BY id ASC");
 
